@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "765086022311",
+    "project_id": "randomreminder-101e6",
+    "storage_bucket": "randomreminder-101e6.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:765086022311:android:7bafa02b10af061fca7982",
+        "android_client_info": {
+          "package_name": "com.farestrand.random_reminder"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "765086022311-aelb75mp88gvleirh5uf4kbuj7oa30lo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCcNYSJEEOJFrSi4VFYPQJutauPkIS2wM0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "765086022311-aelb75mp88gvleirh5uf4kbuj7oa30lo.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "765086022311-e1224cam3ukkcahcgfqa5m2cmq1j4a2t.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.farestrand.randomreminder"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
