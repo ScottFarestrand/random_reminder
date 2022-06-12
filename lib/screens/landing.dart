@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
+// import 'package:firebase_core/firebase_core.dart';
 import '../widgets/Login.dart';
 import '../widgets/verify_email.dart';
 import '../widgets/register.dart';
+// import '../widgets/register2.dart';
 enum pageWidgets {
-  landing,
   login,
   register,
-  validate,
 }
 
 class Landing extends StatefulWidget {
@@ -21,33 +20,39 @@ class Landing extends StatefulWidget {
 }
 
 class _LandingState extends State<Landing> {
-  var pageWidget = pageWidgets.landing;
+  var pageWidget = pageWidgets.login;
 
-  void setStateLoggedIn(){
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('You have logged in!'),
-        )
-    );
-    setState((){
-      pageWidget = pageWidgets.validate;
-    });
-  }
-  void setStateValidated(){
-    setState((){
-      // pageWidget = appState.validated;
-    });
-  }
+  // void setStateLoggedIn(){
+  //   ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(
+  //         content: Text('You have logged in!'),
+  //       )
+  //   );
+  //   setState((){
+  //     pageWidget = pageWidgets.validate;
+  //   });
+  // }
+  // void setStateValidated(){
+  //   setState((){
+  //     // pageWidget = appState.validated;
+  //   });
+  // }
   void setStateRegister(){
     print("Register");
     setState((){
-      pageWidget = pageWidgets.landing;
+      pageWidget = pageWidgets.register;
     });
+  }
+  void setStateLogin(){
+    setState((){
+      pageWidget = pageWidgets.login;
+    }
+    );
   }
   @override
   Widget build(BuildContext context) {
     bool isVerified = false;
-    if (pageWidget == pageWidgets.landing) {
+    if (pageWidget == pageWidgets.login) {
       return Scaffold(
           backgroundColor: Theme
               .of(context)
@@ -66,14 +71,15 @@ class _LandingState extends State<Landing> {
                 isVerified = user.emailVerified;
                 if (!isVerified) {
                   print("Verify");
+                  return ValidateEmail(loginCallback: setStateLogin);
                   // return VerifyEmail();
-                  return Text("Timee to Verify Email");
+                  // return Text("Timee to Verify Email");
                 }
                 // return Text('Time to Login');
-                return Login(loginCallBack: setStateLoggedIn,
+                return Login(loginCallBack: setStateLogin,
                     registerCallBack: setStateRegister);
               } else {
-                return Login(loginCallBack: setStateLoggedIn,
+                return Login(loginCallBack: setStateLogin,
                     registerCallBack: setStateRegister);
                 // return Login();
               }
@@ -82,7 +88,9 @@ class _LandingState extends State<Landing> {
       );
     }
     else {
-      return Register(callback: setStateRegister);
+      return Register(loginCallback: setStateLogin);
+      // return Register2(loginCallBack: setStateLogin);
+      // return Register(callback: setStateRegister);
     }
 
     // if (pageWidget == pageWidgets.landing) {

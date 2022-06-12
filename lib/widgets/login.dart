@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 // import 'package:flutter_navigation/screens/screen1.dart';
 class Login extends StatelessWidget {
@@ -48,41 +49,52 @@ class Login extends StatelessWidget {
                   labelStyle: TextStyle(fontStyle: FontStyle.italic),
                 ),
                 style: TextStyle(fontSize: 20),
-                validator: (value) {
-                  bool numFound = RegExp(r".*[0-9].*").hasMatch(
-                      value.toString());
-                  bool letterFound = RegExp(r".*[A-Za-z].*").hasMatch(
-                      value.toString());
-                  bool spaceFound = RegExp(r".*[ ].*").hasMatch(
-                      value.toString());
-                  bool specCharFound = RegExp(
-                      r".*[\!\~\`\@\#\$\%\^\&\*\(\-\_\+\=\:\;\,\<\.\>\/\?].*")
-                      .hasMatch(value.toString());
-                  if (numFound == false || letterFound == false ||
-                      specCharFound == false) {
-                    return "Password must contain at least one number, one letter, and one special character";
-                  }
-                  if (spaceFound) {
-                    return "Password cannot have a space";
-                  }
-                  int v = value!.length;
-                  if (v < 10) {
-                    return "password should be at least 10 characters";
-                  }
-                  return null;
-                }
+                // validator: (value) {
+                //   bool numFound = RegExp(r".*[0-9].*").hasMatch(
+                //       value.toString());
+                //   bool letterFound = RegExp(r".*[A-Za-z].*").hasMatch(
+                //       value.toString());
+                //   bool spaceFound = RegExp(r".*[ ].*").hasMatch(
+                //       value.toString());
+                //   bool specCharFound = RegExp(
+                //       r".*[\!\~\`\@\#\$\%\^\&\*\(\-\_\+\=\:\;\,\<\.\>\/\?].*")
+                //       .hasMatch(value.toString());
+                //   if (numFound == false || letterFound == false ||
+                //       specCharFound == false) {
+                //     return "Password must contain at least one number, one letter, and one special character";
+                //   }
+                //   if (spaceFound) {
+                //     return "Password cannot have a space";
+                //   }
+                //   int v = value!.length;
+                //   if (v < 10) {
+                //     return "password should be at least 10 characters";
+                //   }
+                //   return null;
+                // }
             ),
             ElevatedButton(
               onPressed: () {
                 print("pressed");
-                // Validate returns true if the form is valid, or false otherwise.
-                if (_formKey.currentState!.validate()) {
-                  print("valid");
-                } else {
-                  print("Not Valid");
+                try {
+                   FirebaseAuth.instance.signInWithEmailAndPassword(
+                      email: emailController.text.trim(),
+                      password: passwordController.text.trim()
+                  ).then((value) {
+                    print(value.user);
+                    print("Logged In");
+                  });
+                } on FirebaseAuthException catch (e){
+                  print(e.code.toString());
                 }
+                // Validate returns true if the form is valid, or false otherwise.
+                // if (_formKey.currentState!.validate()) {
+                //   print("valid");
+                // } else {
+                //   print("Not Valid");
+                // }
 
-                if (_formKey.currentState!.validate()) {
+                // if (_formKey.currentState!.validate()) {
                   // If the form is valid, display a snackbar. In the real world,
                   // you'd often call a server or save the information in a database.
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -105,7 +117,7 @@ class Login extends StatelessWidget {
                   //   print(err);
                   //
                   // }
-                }
+                // }
               },
               child: const Text('Login'),
             ),
