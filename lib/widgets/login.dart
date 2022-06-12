@@ -10,13 +10,13 @@ class Login extends StatelessWidget {
   @override
 
   Widget build(BuildContext context) {
-    final _formKey = GlobalKey<FormState>();
+    final formKey = GlobalKey<FormState>();
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
     emailController.text = "ScottFarestrand@gmail.com";
     passwordController.text = "Jlj#980507";
     return Form(
-      key: _formKey,
+      key: formKey,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(15, 8, 15, 8),
         child: Column(
@@ -81,23 +81,15 @@ class Login extends StatelessWidget {
                       email: emailController.text.trim(),
                       password: passwordController.text.trim()
                   ).then((value) {
-                    print(value.user);
-                    print("Logged In");
                   });
                 } on FirebaseAuthException catch (e){
                   print(e.code.toString());
+                  // ScaffoldMessenger.of(context).showSnackBar(
+                  //   const SnackBar(content: Text(e.code)),
+                  // );
                 }
-                // Validate returns true if the form is valid, or false otherwise.
-                // if (_formKey.currentState!.validate()) {
-                //   print("valid");
-                // } else {
-                //   print("Not Valid");
-                // }
 
-                // if (_formKey.currentState!.validate()) {
-                  // If the form is valid, display a snackbar. In the real world,
-                  // you'd often call a server or save the information in a database.
-                  ScaffoldMessenger.of(context).showSnackBar(
+                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("Creating User")),
                   );
                   // try{
@@ -122,9 +114,11 @@ class Login extends StatelessWidget {
               child: const Text('Login'),
             ),
             ElevatedButton(onPressed: () {
-              print("register Pressed");
               registerCallBack();
             }, child: Text("Register")),
+            ElevatedButton(onPressed: (){
+              FirebaseAuth.instance.signOut();
+            }, child: Text("Log out"))
           ],
         ),
       ),

@@ -6,7 +6,7 @@ class Register extends StatelessWidget {
   const Register({Key? key, required this.loginCallback()}) : super(key: key);
   @override
   Widget build(BuildContext context) {
-    final _formKey = GlobalKey<FormState>();
+    final formKey = GlobalKey<FormState>();
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
     final confirmpasswordController = TextEditingController();
@@ -21,7 +21,7 @@ class Register extends StatelessWidget {
         title: Text("Random Reminder/Register "),
       ),
       body: Form(
-        key: _formKey,
+        key: formKey,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(15, 8, 15, 8),
           child: Column(
@@ -97,21 +97,17 @@ class Register extends StatelessWidget {
               ),
               ElevatedButton(
                 onPressed: () {
-                  print("pressed");
                   // Validate returns true if the form is valid, or false otherwise.
-                  if (_formKey.currentState!.validate()) {
-                    print("valid");
+                  if (formKey.currentState!.validate()) {
                   } else {
-                    print("Not Valid");
                   }
 
-                  if (_formKey.currentState!.validate()) {
+                  if (formKey.currentState!.validate()) {
                     // If the form is valid, display a snackbar. In the real world,
                     // you'd often call a server or save the information in a database.
                     // ScaffoldMessenger.of(context).showSnackBar(
                     //   const SnackBar(content: Text("Creating User")),
                     // );
-                    print("Creating usre");
                     try{
                       FirebaseAuth.instance.createUserWithEmailAndPassword(
                           email: emailController.text.trim(),
@@ -120,14 +116,8 @@ class Register extends StatelessWidget {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text("Created")),
                         );
-                        print("succcess");
-                        print(value);
-                        print(value.user);
-                        print(value.credential);
                         loginCallback();
-                      }).catchError((err){
-                        print("here is ERR");
-                        print(err.code);
+                      }).catchError((err){;
                         if (err.code == "email-already-in-use") {
 
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -137,7 +127,6 @@ class Register extends StatelessWidget {
                       });
                     }
                     catch(err){
-                      print("Here is the error");
                       // sendVerificationEmail();
                       print(err);
                     }

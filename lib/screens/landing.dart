@@ -5,7 +5,7 @@ import '../widgets/Login.dart';
 import '../widgets/verify_email.dart';
 import '../widgets/register.dart';
 // import '../widgets/register2.dart';
-enum pageWidgets {
+enum PageWidgets {
   login,
   register,
 }
@@ -20,7 +20,7 @@ class Landing extends StatefulWidget {
 }
 
 class _LandingState extends State<Landing> {
-  var pageWidget = pageWidgets.login;
+  var pageWidget = PageWidgets.login;
 
   // void setStateLoggedIn(){
   //   ScaffoldMessenger.of(context).showSnackBar(
@@ -38,21 +38,20 @@ class _LandingState extends State<Landing> {
   //   });
   // }
   void setStateRegister(){
-    print("Register");
     setState((){
-      pageWidget = pageWidgets.register;
+      pageWidget = PageWidgets.register;
     });
   }
   void setStateLogin(){
     setState((){
-      pageWidget = pageWidgets.login;
+      pageWidget = PageWidgets.login;
     }
     );
   }
   @override
   Widget build(BuildContext context) {
     bool isVerified = false;
-    if (pageWidget == pageWidgets.login) {
+    if (pageWidget == PageWidgets.login) {
       return Scaffold(
           backgroundColor: Theme
               .of(context)
@@ -66,11 +65,9 @@ class _LandingState extends State<Landing> {
             stream: FirebaseAuth.instance.authStateChanges(),
             builder: (context, snapshot) {
               if (snapshot.hasData) {
-                print("Yes");
                 final user = FirebaseAuth.instance.currentUser!;
                 isVerified = user.emailVerified;
                 if (!isVerified) {
-                  print("Verify");
                   return ValidateEmail(loginCallback: setStateLogin);
                   // return VerifyEmail();
                   // return Text("Timee to Verify Email");
@@ -81,6 +78,8 @@ class _LandingState extends State<Landing> {
               } else {
                 return Login(loginCallBack: setStateLogin,
                     registerCallBack: setStateRegister);
+                // return Login(loginCallBack: setStateLogin,
+                //     registerCallBack: setStateRegister);
                 // return Login();
               }
             },

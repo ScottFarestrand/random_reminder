@@ -23,6 +23,12 @@ class _ValidateEmailState extends State<ValidateEmail> {
           Text("and respond to the email to verify the email address is correct"),
           ElevatedButton(
               onPressed: () {
+                // sendVerificationEmail();
+                final user = FirebaseAuth.instance.currentUser;
+                user!.sendEmailVerification()
+                    .whenComplete(() => print("Success"))
+                    .onError((error, stackTrace) {print(error);});
+                
                 // Navigator.pushNamed(context, Screen_2.id);
               },
               child: Text("Verify Email")),
@@ -48,6 +54,20 @@ class _ValidateEmailState extends State<ValidateEmail> {
         ],
       ),
     );
+
+  }
+  Future sendVerificationEmail() async{
+    print("In Sending");
+    try {
+      final user = FirebaseAuth.instance.currentUser!;
+      user.sendEmailVerification().then((value) {
+        print(user.email);
+        print("Success");
+      } );
+    } catch(err){
+      print("Error");
+      print(err);
+    }
 
   }
 }
