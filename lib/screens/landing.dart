@@ -3,7 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 // import 'package:firebase_core/firebase_core.dart';
 import '../widgets/Login.dart';
 import '../widgets/verify_email.dart';
+import '../widgets/personal_info.dart';
 import '../widgets/register.dart';
+
 // import '../widgets/register2.dart';
 enum PageWidgets {
   login,
@@ -65,17 +67,20 @@ class _LandingState extends State<Landing> {
             stream: FirebaseAuth.instance.authStateChanges(),
             builder: (context, snapshot) {
               if (snapshot.hasData) {
+                print("has Data");
                 final user = FirebaseAuth.instance.currentUser!;
                 isVerified = user.emailVerified;
                 if (!isVerified) {
+                  print("not Verified");
                   return ValidateEmail(loginCallback: setStateLogin);
                   // return VerifyEmail();
                   // return Text("Timee to Verify Email");
                 }
                 // return Text('Time to Login');
-                return Login(loginCallBack: setStateLogin,
-                    registerCallBack: setStateRegister);
+                print("Go to Persoanl");
+                return PersonalInfo();
               } else {
+                print("Login Page");
                 return Login(loginCallBack: setStateLogin,
                     registerCallBack: setStateRegister);
                 // return Login(loginCallBack: setStateLogin,
