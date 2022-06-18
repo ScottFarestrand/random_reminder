@@ -1,4 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 // import 'package:flutter_navigation/screens/screen1.dart';
 class PersonalInfo extends StatefulWidget {
@@ -10,16 +12,20 @@ class PersonalInfo extends StatefulWidget {
 }
 
 class _PersonalInfoState extends State<PersonalInfo> {
-  DateTime currentDate = DateTime.now();
-  Future<void> _selectDate(BuildContext context) async {
+  final dateFormat = new DateFormat('MMM d, y');
+  DateTime birthDate = DateTime.now();
+
+  Future<void> _selectDate(BuildContext context, TextEditingController selectedDate) async {
+    final dateFormat = new DateFormat('MMM d, y');
     final DateTime? pickedDate = await showDatePicker(
         context: context,
-        initialDate: currentDate,
-        firstDate: DateTime(1900),
-        lastDate: DateTime(DateTime.now().year));
-    if (pickedDate != null && pickedDate != currentDate)
+        initialDate: birthDate,
+        firstDate: DateTime(DateTime.now().year - 125),
+        lastDate: DateTime(DateTime.now().year + 1),);
+    if (pickedDate != null && pickedDate != birthDate)
       setState(() {
-        currentDate = pickedDate;
+        birthDate = pickedDate;
+        selectedDate.text = dateFormat.format(birthDate);
       });
   }
   @override
@@ -28,8 +34,10 @@ class _PersonalInfoState extends State<PersonalInfo> {
     final formKey = GlobalKey<FormState>();
     final firstNameController = TextEditingController();
     final lastNameController = TextEditingController();
+    final dateController = TextEditingController();
     firstNameController.text = "Scott";
     lastNameController.text = "Farestrand";
+    dateController.text = dateFormat.format(birthDate);
     return Form(
       key: formKey,
       child: Padding(
@@ -68,47 +76,43 @@ class _PersonalInfoState extends State<PersonalInfo> {
                   return null;
                 }
             ),
-            Text(currentDate.toString()),
+            Text(dateController.text),
             ElevatedButton(
-                onPressed: () => _selectDate(context),
+                onPressed: () => _selectDate(context, dateController),
                 child: Text("Select Date")),
-            ElevatedButton(
-              onPressed: () {
-                print("pressed");
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Creating User")),
-                );
-                // try{
-                //   FirebaseAuth.instance.createUserWithEmailAndPassword(
-                //       email: emailController.text.trim(),
-                //       password: passwordController.text.trim()).
-                //   then((value) {
-                //     ScaffoldMessenger.of(context).showSnackBar(
-                //       const SnackBar(content: Text("Created")),
-                //     );
-                //     print(value);
-                //     print(value.user);
-                //     print(value.credential);
-                //   });
-                // }catch(err){
-                //   sendVerificationEmail();
-                //   print(err);
-                //
-                // }
-                // }
-              },
-              child: const Text('Login'),
-            ),
-            ElevatedButton(onPressed: () {
-            }, child: Text("Register")),
+            // ElevatedButton(
+            //   onPressed: () {
+            //     print("pressed");
+            //
+            //     ScaffoldMessenger.of(context).showSnackBar(
+            //       const SnackBar(content: Text("Creating User")),
+            //     );
+            //   },
+            //   child: const Text('Login'),
+            // ),
+            // ElevatedButton(onPressed: () {
+            // }, child: Text("Register")),
             ElevatedButton(onPressed: (){
               FirebaseAuth.instance.signOut();
-            }, child: Text("Log out"))
+            }, child: Text("Log out")),
+            ElevatedButton(onPressed: (){
+            addRecord(firstNameController.text, lastNameController.text, birthDate);
+            }, child: Text("Write a dang record")),
           ],
         ),
       ),
-
     );
+  }
+  Future addRecord (String firstName, String lastName, DateTime birthDate  ) async {
+    print("Writing");
+    final myID = FirebaseAuth.instance.currentUser!.uid;
+      final docUser = FirebaseFirestore.instance.collection('Users').doc(
+          myID);
+    final json = {
+      'FirstName': firstName,
+      'LastName': lastName,
+      'BirthDate': birthDate,
+    };
+    await docUser.set(json);
   }
 }

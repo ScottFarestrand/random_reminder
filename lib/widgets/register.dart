@@ -1,11 +1,15 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:flutter_navigation/screens/screen1.dart';
 class Register extends StatelessWidget {
   final Function loginCallback;
   const Register({Key? key, required this.loginCallback()}) : super(key: key);
+
   @override
+  // CollectionReference users = FirebaseFirestore.instance.collection('/Users');
+
   Widget build(BuildContext context) {
+
     final formKey = GlobalKey<FormState>();
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
@@ -113,16 +117,16 @@ class Register extends StatelessWidget {
                           email: emailController.text.trim(),
                           password: passwordController.text.trim()).
                       then((value) {
+                        addUser(value.user!.uid);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text("Created")),
                         );
                         loginCallback();
                       }).catchError((err){;
                         if (err.code == "email-already-in-use") {
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text(emailInUse)),
-                        );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text(emailInUse)),
+                          );
                         }
                       });
                     }
@@ -145,5 +149,16 @@ class Register extends StatelessWidget {
       ),
 
     );
+  }
+  Future<void> addUser(String UserID) {
+    CollectionReference users = FirebaseFirestore.instance.collection('/Users');
+    return users
+          .add({
+        'userId': UserID,
+        'full_name': 'Scott', // John Doe
+        'company': "XXX", // Stokes and Sons
+        'age': 42 // 42
+      }).then((value) => print("User Added"))
+          .catchError((error) => print("Failed to add user: $error"));
   }
 }

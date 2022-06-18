@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// import '../screens/screen2.dart';
 class ValidateEmail extends StatefulWidget {
   final Function loginCallback;
   const ValidateEmail({Key? key, required this.loginCallback()}) : super(key: key);
@@ -23,7 +22,6 @@ class _ValidateEmailState extends State<ValidateEmail> {
           Text("and respond to the email to verify the email address is correct"),
           ElevatedButton(
               onPressed: () {
-                // sendVerificationEmail();
                 final user = FirebaseAuth.instance.currentUser;
                 user!.sendEmailVerification()
                     .whenComplete(() => print("Success"))
@@ -51,6 +49,10 @@ class _ValidateEmailState extends State<ValidateEmail> {
                 }
               },
               child: Text("Oops, that was the wrong Email address")),
+          // ElevatedButton(onPressed: (){
+          //   print("Writoe it");
+          //   addRecord();
+          // }, child: Text("Write a record")),
         ],
       ),
     );
@@ -70,4 +72,5 @@ class _ValidateEmailState extends State<ValidateEmail> {
     }
 
   }
+
 }

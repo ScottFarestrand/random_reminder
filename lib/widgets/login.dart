@@ -22,7 +22,6 @@ class Login extends StatelessWidget {
         child: Column(
           children: <Widget>[
             SizedBox(height: 20),
-
             TextFormField(
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
@@ -49,29 +48,6 @@ class Login extends StatelessWidget {
                   labelStyle: TextStyle(fontStyle: FontStyle.italic),
                 ),
                 style: TextStyle(fontSize: 20),
-                // validator: (value) {
-                //   bool numFound = RegExp(r".*[0-9].*").hasMatch(
-                //       value.toString());
-                //   bool letterFound = RegExp(r".*[A-Za-z].*").hasMatch(
-                //       value.toString());
-                //   bool spaceFound = RegExp(r".*[ ].*").hasMatch(
-                //       value.toString());
-                //   bool specCharFound = RegExp(
-                //       r".*[\!\~\`\@\#\$\%\^\&\*\(\-\_\+\=\:\;\,\<\.\>\/\?].*")
-                //       .hasMatch(value.toString());
-                //   if (numFound == false || letterFound == false ||
-                //       specCharFound == false) {
-                //     return "Password must contain at least one number, one letter, and one special character";
-                //   }
-                //   if (spaceFound) {
-                //     return "Password cannot have a space";
-                //   }
-                //   int v = value!.length;
-                //   if (v < 10) {
-                //     return "password should be at least 10 characters";
-                //   }
-                //   return null;
-                // }
             ),
             ElevatedButton(
               onPressed: () {
@@ -84,32 +60,10 @@ class Login extends StatelessWidget {
                   });
                 } on FirebaseAuthException catch (e){
                   print(e.code.toString());
-                  // ScaffoldMessenger.of(context).showSnackBar(
-                  //   const SnackBar(content: Text(e.code)),
-                  // );
                 }
-
                    ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("Creating User")),
                   );
-                  // try{
-                  //   FirebaseAuth.instance.createUserWithEmailAndPassword(
-                  //       email: emailController.text.trim(),
-                  //       password: passwordController.text.trim()).
-                  //   then((value) {
-                  //     ScaffoldMessenger.of(context).showSnackBar(
-                  //       const SnackBar(content: Text("Created")),
-                  //     );
-                  //     print(value);
-                  //     print(value.user);
-                  //     print(value.credential);
-                  //   });
-                  // }catch(err){
-                  //   sendVerificationEmail();
-                  //   print(err);
-                  //
-                  // }
-                // }
               },
               child: const Text('Login'),
             ),
@@ -118,11 +72,13 @@ class Login extends StatelessWidget {
             }, child: Text("Register")),
             ElevatedButton(onPressed: (){
               FirebaseAuth.instance.signOut();
-            }, child: Text("Log out"))
+            }, child: Text("Log out")),
+            ElevatedButton(onPressed: (){}, child: Text("Write a rec")),
           ],
         ),
       ),
 
     );
   }
+
 }
