@@ -38,10 +38,10 @@ class _LandingState extends State<Landing> {
     bool isVerified = false;
     if (pageWidget == PageWidgets.login) {
       return Scaffold(
-          backgroundColor: Theme
-              .of(context)
-              .colorScheme
-              .primary,
+          // backgroundColor: Theme
+          //     .of(context)
+          //     .colorScheme
+          //     .primary,
           appBar: AppBar(
             title: Text("Random Reminder"),
           ),

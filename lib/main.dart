@@ -21,10 +21,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
-      theme: ThemeData(
-        backgroundColor: Colors.lightBlue,
-        primarySwatch: Colors.blue,
-      ),
+      // theme: ThemeData(
+      //   backgroundColor: Colors.lightBlue,
+      //   primarySwatch: Colors.blue,
+      // ),
       // home: const MyHomePage(title: 'Flutter Demo Home Page'),
       initialRoute: Landing.id,
       routes: {

@@ -111,6 +111,7 @@ class _PersonalInfoState extends State<PersonalInfo> {
                 }
             ),
             TextFormField(
+              onTap: () {_selectDate(context, dateController);},
               decoration: InputDecoration(
                 labelText: "Birth Date",
                 labelStyle: TextStyle(fontStyle: FontStyle.italic),
@@ -146,15 +147,12 @@ class _PersonalInfoState extends State<PersonalInfo> {
                     });
                   })
             ],),
-            ElevatedButton(
-                onPressed: () => _selectDate(context, dateController),
-                child: Text("Select Date")),
             ElevatedButton(onPressed: (){
               FirebaseAuth.instance.signOut();
             }, child: Text("Log out")),
             ElevatedButton(onPressed: (){
             addRecord(firstNameController.text, lastNameController.text, birthDate);
-            }, child: Text("Write a dang record")),
+            }, child: Text("Save")),
           ],
         ),
       ),
