@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
-// import 'package:flutter_navigation/screens/screen1.dart';
 class PersonalInfo extends StatefulWidget {
 
   const PersonalInfo({Key? key}) : super(key: key);
@@ -28,16 +27,34 @@ class _PersonalInfoState extends State<PersonalInfo> {
         selectedDate.text = dateFormat.format(birthDate);
       });
   }
+
   @override
 
   Widget build(BuildContext context) {
+
     final formKey = GlobalKey<FormState>();
+
     final firstNameController = TextEditingController();
     final lastNameController = TextEditingController();
     final dateController = TextEditingController();
-    firstNameController.text = "Scott";
-    lastNameController.text = "Farestrand";
-    dateController.text = dateFormat.format(birthDate);
+    final birthDateController = TextEditingController();
+    String tempDate;
+    int _seconds;
+    int _nanoseconds;
+    // DateTime _birthDate;
+    FirebaseFirestore.instance.collection('Users').
+    doc(FirebaseAuth.instance.currentUser!.uid).
+    get().then((snapshot) => {
+      tempDate = snapshot['BirthDate'].toString(),
+      _seconds = int.parse(tempDate.substring(18, 28)),
+      _nanoseconds = int.parse(tempDate.substring(42, tempDate.lastIndexOf(')'))),
+      birthDate = Timestamp(_seconds, _nanoseconds).toDate(),
+      firstNameController.text = snapshot['FirstName'],
+      lastNameController.text = snapshot['LastName'],
+    });
+
+
+    birthDateController.text = dateFormat.format(birthDate);
     return Form(
       key: formKey,
       child: Padding(
@@ -76,22 +93,19 @@ class _PersonalInfoState extends State<PersonalInfo> {
                   return null;
                 }
             ),
-            Text(dateController.text),
+            TextFormField(
+              decoration: InputDecoration(
+                labelText: "Birth Date",
+                labelStyle: TextStyle(fontStyle: FontStyle.italic),
+              ),
+              style: TextStyle(fontSize: 20),
+              controller: birthDateController,
+              keyboardType: TextInputType.none,
+            ),
+
             ElevatedButton(
                 onPressed: () => _selectDate(context, dateController),
                 child: Text("Select Date")),
-            // ElevatedButton(
-            //   onPressed: () {
-            //     print("pressed");
-            //
-            //     ScaffoldMessenger.of(context).showSnackBar(
-            //       const SnackBar(content: Text("Creating User")),
-            //     );
-            //   },
-            //   child: const Text('Login'),
-            // ),
-            // ElevatedButton(onPressed: () {
-            // }, child: Text("Register")),
             ElevatedButton(onPressed: (){
               FirebaseAuth.instance.signOut();
             }, child: Text("Log out")),
@@ -103,8 +117,23 @@ class _PersonalInfoState extends State<PersonalInfo> {
       ),
     );
   }
+  // readUser(TextEditingController ) {
+  //
+  //   FirebaseFirestore.instance.collection('Users').
+  //   doc(FirebaseAuth.instance.currentUser!.uid).
+  //   get().then((snapshot) => {
+  //   });
+  // }
+  // Stream<List<RRUser>> readUser() {
+  //   return FirebaseFirestore.instance.
+  //       .collection('Users')
+  //       .where('Id', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+  //       .snapshots()
+  //       .map((qSnap) => qSnap.docs
+  //       .map((doc) => RRUser.fromJson(doc.data()))
+  //       .toList());
+  // }
   Future addRecord (String firstName, String lastName, DateTime birthDate  ) async {
-    print("Writing");
     final myID = FirebaseAuth.instance.currentUser!.uid;
       final docUser = FirebaseFirestore.instance.collection('Users').doc(
           myID);
