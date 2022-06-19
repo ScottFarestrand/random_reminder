@@ -12,7 +12,15 @@ class PersonalInfo extends StatefulWidget {
 
 class _PersonalInfoState extends State<PersonalInfo> {
   final dateFormat = new DateFormat('MMM d, y');
+  final firstNameController = TextEditingController();
+  final lastNameController = TextEditingController();
   DateTime birthDate = DateTime.now();
+  String firstName = "";
+  String lastName = "";
+  bool textReminders = false;
+  bool emailReminders = false;
+  bool _saved = true;
+
 
   Future<void> _selectDate(BuildContext context, TextEditingController selectedDate) async {
     final dateFormat = new DateFormat('MMM d, y');
@@ -33,25 +41,34 @@ class _PersonalInfoState extends State<PersonalInfo> {
   Widget build(BuildContext context) {
 
     final formKey = GlobalKey<FormState>();
-
-    final firstNameController = TextEditingController();
-    final lastNameController = TextEditingController();
+    // final firstNameController = TextEditingController();
+    // final lastNameController = TextEditingController();
     final dateController = TextEditingController();
     final birthDateController = TextEditingController();
+
     String tempDate;
     int _seconds;
     int _nanoseconds;
     // DateTime _birthDate;
-    FirebaseFirestore.instance.collection('Users').
-    doc(FirebaseAuth.instance.currentUser!.uid).
-    get().then((snapshot) => {
-      tempDate = snapshot['BirthDate'].toString(),
-      _seconds = int.parse(tempDate.substring(18, 28)),
-      _nanoseconds = int.parse(tempDate.substring(42, tempDate.lastIndexOf(')'))),
-      birthDate = Timestamp(_seconds, _nanoseconds).toDate(),
-      firstNameController.text = snapshot['FirstName'],
-      lastNameController.text = snapshot['LastName'],
-    });
+    if (_saved ) {
+      print('fetching');
+      FirebaseFirestore.instance.collection('Users').
+      doc(FirebaseAuth.instance.currentUser!.uid).
+      get().then((snapshot) =>
+      {
+        print('then'),
+        tempDate = snapshot['BirthDate'].toString(),
+        _seconds = int.parse(tempDate.substring(18, 28)),
+        _nanoseconds =
+            int.parse(tempDate.substring(42, tempDate.lastIndexOf(')'))),
+        birthDate = Timestamp(_seconds, _nanoseconds).toDate(),
+        firstNameController.text = snapshot['FirstName'],
+        lastNameController.text = snapshot['LastName'],
+        emailReminders = snapshot["SendEmailReminders"],
+        textReminders = snapshot["SendTextReminders"],
+        _saved = false,
+      });
+    }
 
 
     birthDateController.text = dateFormat.format(birthDate);
@@ -103,6 +120,32 @@ class _PersonalInfoState extends State<PersonalInfo> {
               keyboardType: TextInputType.none,
             ),
 
+            Row(children: [
+              Text('Send Text Reminders', style: TextStyle(fontSize: 20),),
+              Switch(
+                  value: textReminders,
+                  onChanged: (bool? value) { // This is where we update the state when the checkbox is tapped
+                    print(value);
+
+                    setState(() {
+                      print("setting");
+                      textReminders = value!;
+                      print(textReminders);
+                    });
+                  })
+            ],),
+            Row(children: [
+              Text('Send Email Reminders', style: TextStyle(fontSize: 20), ),
+              Switch(
+                  value: emailReminders,
+                  onChanged: (bool? value) { // This is where we update the state when the checkbox is tapped
+                    print(value);
+
+                    setState(() {
+                      emailReminders = value!;
+                    });
+                  })
+            ],),
             ElevatedButton(
                 onPressed: () => _selectDate(context, dateController),
                 child: Text("Select Date")),
@@ -117,31 +160,24 @@ class _PersonalInfoState extends State<PersonalInfo> {
       ),
     );
   }
-  // readUser(TextEditingController ) {
   //
-  //   FirebaseFirestore.instance.collection('Users').
-  //   doc(FirebaseAuth.instance.currentUser!.uid).
-  //   get().then((snapshot) => {
-  //   });
-  // }
-  // Stream<List<RRUser>> readUser() {
-  //   return FirebaseFirestore.instance.
-  //       .collection('Users')
-  //       .where('Id', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
-  //       .snapshots()
-  //       .map((qSnap) => qSnap.docs
-  //       .map((doc) => RRUser.fromJson(doc.data()))
-  //       .toList());
-  // }
   Future addRecord (String firstName, String lastName, DateTime birthDate  ) async {
     final myID = FirebaseAuth.instance.currentUser!.uid;
-      final docUser = FirebaseFirestore.instance.collection('Users').doc(
+    final docUser = FirebaseFirestore.instance.collection('Users').doc(
           myID);
+    print("Saving");
+    print(textReminders);
     final json = {
-      'FirstName': firstName,
-      'LastName': lastName,
+      'FirstName': firstNameController.text,
+      'LastName': lastNameController.text,
       'BirthDate': birthDate,
-    };
+      'SendTextReminders': textReminders,
+      'SendEmailReminders': emailReminders,
+     };
     await docUser.set(json);
+    setState((){
+      _saved = true;
+    });
+
   }
 }
