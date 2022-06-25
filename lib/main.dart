@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:random_reminder/screens/personal_info.dart';
 import './screens/landing.dart';
+
 // import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 // import './screens/personal_info.dart';
@@ -29,7 +30,7 @@ class MyApp extends StatelessWidget {
       initialRoute: Landing.id,
       routes: {
         Landing.id: (context) => Landing(),
-        PersonalInfo.id: (context) => PersonalInfo(),
+        PersonalInfoScreen.id: (context) => PersonalInfoScreen(),
         // Screen_2.id: (context) => Screen_2(),
         // Screen_3.id: (context) => Screen_3(),
       },

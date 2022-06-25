@@ -4,6 +4,7 @@ import '../widgets/Login.dart';
 import '../widgets/verify_email.dart';
 import '../widgets/personal_info.dart';
 import '../widgets/register.dart';
+import '../widgets/drawer.dart';
 
 enum PageWidgets {
   login,
@@ -35,9 +36,12 @@ class _LandingState extends State<Landing> {
   }
   @override
   Widget build(BuildContext context) {
+    print("Build Landing");
     bool isVerified = false;
     if (pageWidget == PageWidgets.login) {
       return Scaffold(
+        drawer: NavDrawer(
+        ),
           // backgroundColor: Theme
           //     .of(context)
           //     .colorScheme
