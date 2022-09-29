@@ -1,13 +1,12 @@
 import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
-class PersonalInfo extends StatefulWidget {
-
+// class PersonalInfo extends StatelessWidget {
+  class PersonalInfo extends StatefulWidget {
   const PersonalInfo({Key? key}) : super(key: key);
 
   @override
@@ -32,7 +31,7 @@ class _PersonalInfoState extends State<PersonalInfo> {
   bool cellPhoneValidated = false;
   bool _saved = true;
   String origCellPhone = "";
-  bool _cellValidated = false;
+  // bool _cellValidated = false;
 
 
 
@@ -53,7 +52,7 @@ class _PersonalInfoState extends State<PersonalInfo> {
   @override
 
   Widget build(BuildContext context) {
-
+    print("Building PErsonal");
     final formKey = GlobalKey<FormState>();
 
 
@@ -79,7 +78,7 @@ class _PersonalInfoState extends State<PersonalInfo> {
         cellPhoneNumberController.text = snapshot["CellPhone"],
         origCellPhone = snapshot["CellPhone"],
         cellPhoneValidated = snapshot["CellPhoneValidated"],
-        _cellValidated = cellPhoneValidated,
+        // _cellValidated = cellPhoneValidated,
         _saved = true,
       });
     }

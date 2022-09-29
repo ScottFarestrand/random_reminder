@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../screens/personal_info.dart';
+// import '../services/navigation.dart';
 
 class NavDrawer extends StatelessWidget {
 
@@ -31,6 +32,7 @@ class NavDrawer extends StatelessWidget {
             buildMenuItem(
                 text: "Log out",
                 icon: Icons.logout,
+                // onClicked: selectedItem(context, 2),
                 onClicked: () => selectedItem(context, 2),
             ),
         ],),
@@ -54,13 +56,18 @@ class NavDrawer extends StatelessWidget {
     );
   }
   void selectedItem(BuildContext context, int index){
+    print("Something happened");
     switch (index) {
       case 0:
+        print("0");
         Navigator.of(context).push(MaterialPageRoute(builder: (context) => PersonalInfoScreen()));
         break;
       case 1:
+        print("1");
+
         break;
       case 2:
+        print("2");
         break;
 
     }

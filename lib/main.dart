@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:random_reminder/screens/personal_info.dart';
+// import 'package:random_reminder/screens/personal_info.dart';
 import './screens/landing.dart';
+import './services/navigation.dart';
 
 // import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -21,19 +22,17 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: NavigationService.instance.navigatorKey,
       title: 'Flutter Demo',
-      // theme: ThemeData(
-      //   backgroundColor: Colors.lightBlue,
-      //   primarySwatch: Colors.blue,
-      // ),
-      // home: const MyHomePage(title: 'Flutter Demo Home Page'),
-      initialRoute: Landing.id,
-      routes: {
-        Landing.id: (context) => Landing(),
-        PersonalInfoScreen.id: (context) => PersonalInfoScreen(),
-        // Screen_2.id: (context) => Screen_2(),
-        // Screen_3.id: (context) => Screen_3(),
-      },
+
+      home: Landing(),
+      // initialRoute: Landing.id,
+      // routes: {
+      //   Landing.id: (context) => Landing(),
+      //   PersonalInfoScreen.id: (context) => PersonalInfoScreen(),
+      //   // Screen_2.id: (context) => Screen_2(),
+      //   // Screen_3.id: (context) => Screen_3(),
+      // },
     );
   }
 

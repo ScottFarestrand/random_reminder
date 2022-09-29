@@ -1,0 +1,12 @@
+const String gFirstName = 'firstname';
+const String gLastName = 'lastname';
+const String gBirthDate = 'birthdate';
+const String gCellPhone = 'cellphone';
+const String gCellPhoneValidated = 'cellphonevalidated';
+const String gSendEmailReminders = 'sendemailreminders';
+const String gSendTextReminders = 'sendtextreminders';
+const String gAnniversary = 'anniversary';
+const String gAnniversaryType = 'anniversarytype';
+const String gRandomReminders = 'randomreminders';
+const String gRelationshipType = 'relationshiptype';
+const String gUserId = 'userid';
