@@ -1,4 +1,5 @@
 import '../constants/globals.dart';
+
 class Relationship {
   final String firstName;
   final String lastName;

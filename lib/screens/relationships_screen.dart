@@ -1,11 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/relationship_model.dart';
+// import '../services/navigation.dart';
 class Relationships_Screen extends StatelessWidget {
   const Relationships_Screen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+
+
     print("Building Container");
     return Container(
       child: StreamBuilder<List<Relationship>>(
@@ -27,6 +30,9 @@ class Relationships_Screen extends StatelessWidget {
     leading: Text(relationship.firstName),
     title: Text(relationship.lastName),
     subtitle: Text('WOW'),
+    onTap: (){
+      print("Tapped");
+      },
   );
   Stream<List<Relationship>> readRelationships() =>
       FirebaseFirestore.instance.

@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/navigation.dart';
 import '../widgets/Login.dart';
 import '../widgets/verify_email.dart';
 import '../widgets/personal_info.dart';
@@ -26,6 +27,8 @@ class Landing extends StatefulWidget {
 }
 
 class _LandingState extends State<Landing> {
+  final NavigationService nav = NavigationService.instance;
+
   var pageWidget = PageWidgets.login;
   int _currentIndex = 0;
 
@@ -51,6 +54,12 @@ class _LandingState extends State<Landing> {
         ),
           appBar: AppBar(
             title: Text("Random Reminder"),
+            actions: [
+              IconButton(onPressed: ()=>{
+                print("Presssed"),
+                // NavigationService
+              }, icon: Icon(Icons.add))
+            ],
           ),
           // body: Login(),
           body: StreamBuilder<User?>(
@@ -68,22 +77,18 @@ class _LandingState extends State<Landing> {
                 print(_currentIndex);
                 switch(_currentIndex) {
                   case 0:
-                    print("login");
+                    print("Profile");
                     break;
                   case 1:
-                    print("Profile");
+                    curWidget = Relationships_Screen();
 
                     // return PersonalInfo();
                     break;
                   case 2:
-                    curWidget = Relationships_Screen();
-                    // return PersonalInfo();
-                    break;
-
-                  case 3:
                     print("Logout");
                     // return PersonalInfo();
                     break;
+
                 }
                 return curWidget;
               } else {
@@ -100,22 +105,23 @@ class _LandingState extends State<Landing> {
           showSelectedLabels: true,
           showUnselectedLabels: true,
           unselectedFontSize: 10,
+          backgroundColor: Colors.blue,
           items: [
         BottomNavigationBarItem(
-        icon: Icon(Icons.login ),
-          label: "Login/Register",
+        icon: Icon(Icons.person),
+          label: "Profile",
           backgroundColor: Colors.blue),
             BottomNavigationBarItem(
-              icon: Icon(Icons.person),
-              label: "Profile",
+              icon: Icon(Icons.people),
+              label: "Relationships",
             backgroundColor: Colors.blue),
             BottomNavigationBarItem(
-                icon: Icon(Icons.people),
-                label: "Relationships",
+                icon: Icon(Icons.logout),
+                label: "Logout",
                 backgroundColor: Colors.blue),
             BottomNavigationBarItem(
-                icon: Icon(Icons.logout),
-                label: "Log out",
+                icon: Icon(Icons.close),
+                label: "Close App",
                 backgroundColor: Colors.blue)
           ],
         ),
