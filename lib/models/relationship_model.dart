@@ -1,3 +1,7 @@
+// import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
+// import 'package:flutter/material.dart';
+
 import '../constants/globals.dart';
 
 class Relationship {
@@ -9,6 +13,7 @@ class Relationship {
   final int randomReminders;
   final String relationshipType;
   final String userId;
+  final String docId;
 
   Relationship({
     required this.firstName,
@@ -19,6 +24,7 @@ class Relationship {
     required this.randomReminders,
     required this.relationshipType,
     required this.userId,
+    required this.docId,
   });
   Map<String, dynamic> toJson() => {
     gFirstName: firstName,
@@ -29,9 +35,11 @@ class Relationship {
     gRandomReminders: randomReminders,
     gRelationshipType: relationshipType,
     gUserId: userId,
+    // gDocId: docId,
+
   };
 
-  static Relationship fromJson(Map<String, dynamic> json) => Relationship(
+  static Relationship fromJson(docid, Map<String, dynamic> json) => Relationship(
     firstName: json[gFirstName],
     lastName: json[gLastName],
     // anniversary: json[gAnniversary],
@@ -40,5 +48,7 @@ class Relationship {
     randomReminders: json[gRandomReminders],
     relationshipType: json[gRelationshipType],
     userId: json[gUserId],
+    docId: docid,
   );
+
 }

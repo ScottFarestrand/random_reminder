@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 // import 'package:random_reminder/screens/personal_info.dart';
 import './screens/landing.dart';
 import './services/navigation.dart';
+import './screens/relationships_screen.dart';
+import './screens/person.dart';
 
 // import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -26,13 +28,14 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
 
       home: Landing(),
-      // initialRoute: Landing.id,
-      // routes: {
-      //   Landing.id: (context) => Landing(),
-      //   PersonalInfoScreen.id: (context) => PersonalInfoScreen(),
-      //   // Screen_2.id: (context) => Screen_2(),
-      //   // Screen_3.id: (context) => Screen_3(),
-      // },
+      initialRoute: Landing.id,
+      routes: {
+        Landing.id: (context) => Landing(),
+        Relationships_Screen.id: (context) => Relationships_Screen(),
+        Person.id: (context) => Person(),
+        // Screen_2.id: (context) => Screen_2(),
+        // Screen_3.id: (context) => Screen_3(),
+      },
     );
   }
 

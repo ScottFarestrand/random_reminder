@@ -11,6 +11,7 @@ import '../widgets/personal_info.dart';
 import '../screens/relationships_screen.dart';
 import '../widgets/register.dart';
 import '../widgets/drawer.dart';
+// import '../screens/validate_email.dart';
 
 enum PageWidgets {
   login,
@@ -71,15 +72,19 @@ class _LandingState extends State<Landing> {
                 isVerified = user.emailVerified;
                 if (!isVerified) {
                   print("not Verified");
+                  // nav.push(ValidateEmail(loginCallback: loginCallback));s
                   return ValidateEmail(loginCallback: setStateLogin);
+
                 }
-                print("Go to Persoanl");
+                print("Go to Personal");
                 print(_currentIndex);
                 switch(_currentIndex) {
                   case 0:
                     print("Profile");
                     break;
                   case 1:
+                    print("Pushing");
+                    // Navigator.pushNamed(context, Relationships_Screen.id);
                     curWidget = Relationships_Screen();
 
                     // return PersonalInfo();

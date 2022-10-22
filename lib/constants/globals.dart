@@ -10,3 +10,4 @@ const String gAnniversaryType = 'anniversarytype';
 const String gRandomReminders = 'randomreminders';
 const String gRelationshipType = 'relationshiptype';
 const String gUserId = 'userid';
+const String gDocId = 'docid';
