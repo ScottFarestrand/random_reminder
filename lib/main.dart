@@ -32,7 +32,7 @@ class MyApp extends StatelessWidget {
       routes: {
         Landing.id: (context) => Landing(),
         Relationships_Screen.id: (context) => Relationships_Screen(),
-        Person.id: (context) => Person(),
+        // Person.id: (context) => Person(),
         // Screen_2.id: (context) => Screen_2(),
         // Screen_3.id: (context) => Screen_3(),
       },

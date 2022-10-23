@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:random_reminder/screens/person.dart';
 import '../services/navigation.dart';
 import '../widgets/Login.dart';
 import '../widgets/verify_email.dart';
@@ -74,7 +75,6 @@ class _LandingState extends State<Landing> {
                   print("not Verified");
                   // nav.push(ValidateEmail(loginCallback: loginCallback));s
                   return ValidateEmail(loginCallback: setStateLogin);
-
                 }
                 print("Go to Personal");
                 print(_currentIndex);
@@ -93,6 +93,7 @@ class _LandingState extends State<Landing> {
                     print("Logout");
                     // return PersonalInfo();
                     break;
+
 
                 }
                 return curWidget;
