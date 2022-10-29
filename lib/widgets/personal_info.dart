@@ -8,7 +8,6 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 // class PersonalInfo extends StatelessWidget {
   class PersonalInfo extends StatefulWidget {
   const PersonalInfo({Key? key}) : super(key: key);
-
   @override
   State<PersonalInfo> createState() => _PersonalInfoState();
 }

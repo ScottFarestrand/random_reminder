@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:random_reminder/widgets/reminder.dart';
 import '../models/data.dart';
 import '../constants/globals.dart';
 import '../models/relationship_model.dart';
+
 
 class Person extends StatefulWidget {
   static const id = "Person";
@@ -16,6 +18,7 @@ class Person extends StatefulWidget {
 }
 
 class _PersonState extends State<Person> {
+
   @override
   Widget build(BuildContext context) {
     if (widget.data.docID != "") {
@@ -63,21 +66,22 @@ class _PersonState extends State<Person> {
           appBar: AppBar(title: Text("Edit Relationship")),
           body: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Container(child: Column(children: [
-              Text('HI'),
-              Text("Hello"),
-              Text(widget.data.docID!),
-              IconButton(
-                        icon:   Icon(Icons.exit_to_app),
-                        onPressed: () {
-                          {
-                            print("Pop ME");
-                            Navigator.pop(context);
-                          }},
-                      ),
-            ],
-
-            ),),
+            child: ReminderDetails(),
+            // child: Container(child: Column(children: [
+            //   Text('HI'),
+            //   Text("Hello"),
+            //   Text(widget.data.docID!),
+            //   IconButton(
+            //             icon:   Icon(Icons.exit_to_app),
+            //             onPressed: () {
+            //               {
+            //                 print("Pop ME");
+            //                 Navigator.pop(context);
+            //               }},
+            //           ),
+            // ],
+            //
+            // ),),
           ),
         ),
 

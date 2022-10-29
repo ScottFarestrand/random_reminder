@@ -11,3 +11,5 @@ const String gRandomReminders = 'randomreminders';
 const String gRelationshipType = 'relationshiptype';
 const String gUserId = 'userid';
 const String gDocId = 'docid';
+const List<String> gAnniversaryTypes = ["Adoption", "Employement",  "First Date", "Wedding", "Other"];
+const List<String> gRelationshipTypes = ['Daughter','Husband', 'Son', 'Wife', 'Other'];
