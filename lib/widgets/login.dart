@@ -51,18 +51,20 @@ class Login extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () {
-                print("pressed");
+                print("Login Pressed");
                 try {
                    FirebaseAuth.instance.signInWithEmailAndPassword(
                       email: emailController.text.trim(),
                       password: passwordController.text.trim()
                   ).then((value) {
+                    print("I am HERE");
                   });
                 } on FirebaseAuthException catch (e){
+                  print("ERROR");
                   print(e.code.toString());
                 }
                    ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Creating User")),
+                    const SnackBar(content: Text("Logging In")),
                   );
               },
               child: const Text('Login'),

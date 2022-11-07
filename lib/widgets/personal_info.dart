@@ -35,7 +35,8 @@ class _PersonalInfoState extends State<PersonalInfo> {
 
 
   Future<void> _selectDate(BuildContext context, TextEditingController selectedDate) async {
-    final dateFormat = new DateFormat('MMM d, y');
+    final dateFormat = new DateFormat.yMd();
+
     final DateTime? pickedDate = await showDatePicker(
         context: context,
         initialDate: birthDate,
@@ -44,7 +45,9 @@ class _PersonalInfoState extends State<PersonalInfo> {
     if (pickedDate != null && pickedDate != birthDate)
       setState(() {
         birthDate = pickedDate;
-        selectedDate.text = dateFormat.format(birthDate);
+        _saved = false;
+        print(birthDate);
+        birthDateController.text = dateFormat.format(birthDate);
       });
   }
 
@@ -59,6 +62,7 @@ class _PersonalInfoState extends State<PersonalInfo> {
     int _seconds;
     int _nanoseconds;
     // DateTime _birthDate;
+
     if (_saved ) {
       FirebaseFirestore.instance.collection('Users').
       doc(FirebaseAuth.instance.currentUser!.uid).
@@ -81,8 +85,6 @@ class _PersonalInfoState extends State<PersonalInfo> {
         _saved = true,
       });
     }
-
-
     birthDateController.text = dateFormat.format(birthDate);
     
 
@@ -94,79 +96,18 @@ class _PersonalInfoState extends State<PersonalInfo> {
           children: <Widget>[
             SizedBox(height: 20),
 
-            TextFormField(
-                controller: firstNameController,
-                keyboardType: TextInputType.text,
-                decoration: InputDecoration(
-                  labelText: "First Name",
-                  labelStyle: TextStyle(fontStyle: FontStyle.italic),
-                ),
-                style: TextStyle(fontSize: 20),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Please enter First Name";
-                  }
-                  return null;
-                }
-            ),
-            TextFormField(
-              controller: lastNameController,
-              keyboardType: TextInputType.text,
-              decoration: InputDecoration(
-                labelText: "Last Name",
-                labelStyle: TextStyle(fontStyle: FontStyle.italic),
-              ),
-              style: TextStyle(fontSize: 20),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Please enter Last Name";
-                  }
-                  return null;
-                }
-            ),
-            TextFormField(
-              onTap: () {_selectDate(context, dateController);},
-              decoration: InputDecoration(
-                labelText: "Birth Date",
-                labelStyle: TextStyle(fontStyle: FontStyle.italic),
-              ),
-              style: TextStyle(fontSize: 20),
-              controller: birthDateController,
-              keyboardType: TextInputType.none,
-            ),
-            TextFormField(
-              // inputFormatters: [MaskedInputFormater('(###) ###-####')],
-              inputFormatters: [maskFormatter],
-              controller: cellPhoneNumberController,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                labelText: "Cell Phone Number",
-                labelStyle: TextStyle(fontStyle: FontStyle.italic),
-              ),
-              style: TextStyle(fontSize: 20),
-            ),
-            Row(children: [
-              Text('Send Text Reminders', style: TextStyle(fontSize: 20),),
-              Switch(
-                  value: textReminders,
-                  onChanged: (bool? value) { // This is where we update the state when the checkbox is tapped
-                    print(value);
-
-                    setState(() {
-                      print("setting");
-                      textReminders = value!;
-                      print(textReminders);
-                    });
-                  })
-            ],),
+            buildTextFormField(firstNameController, "First Name"),
+            buildTextFormField(lastNameController, "Last Name"),
+            buildDateTextFormField(context, birthDateController, "Birth Date"),
+            buildPhoneTextFormField(cellPhoneNumberController, "Cell Phone Number"),
+            buildSelectionRow(textReminders, "Send Text Reminders"),
             Row(children: [
               Text('Send Email Reminders', style: TextStyle(fontSize: 20), ),
               Switch(
                   value: emailReminders,
                   onChanged: (bool? value) { // This is where we update the state when the checkbox is tapped
-                    print(value);
-
                     setState(() {
+                      _saved = false;  
                       emailReminders = value!;
                     });
                   })
@@ -175,6 +116,11 @@ class _PersonalInfoState extends State<PersonalInfo> {
               FirebaseAuth.instance.signOut();
             }, child: Text("Log out")),
             ElevatedButton(onPressed: (){
+
+
+
+             // DateTime zz = DateFormat('y, MMMM, d', 'en_US').parse(birthDateController.text);
+             //  print(zz);
             addRecord(firstNameController.text, lastNameController.text, birthDate);
             }, child: Text("Save")),
             Visibility(
@@ -188,19 +134,105 @@ class _PersonalInfoState extends State<PersonalInfo> {
       ),
     );
   }
+
+  Row buildSelectionRow( bool myValue,String promptText) {
+    return Row(children: [
+            Text(promptText, style: TextStyle(fontSize: 20),),
+            Switch(
+                value: myValue,
+                onChanged: (bool? value) { // This is where we update the state when the checkbox is tappe
+
+                  setState(() {
+                    _saved = false;
+                    myValue = value!;
+                  });
+                })
+          ],);
+  }
+
+  TextFormField buildPhoneTextFormField(TextEditingController phoneTextEditingController, String promptText) {
+    return TextFormField(
+            onChanged: (text){
+              setState(() {
+                _saved = false;
+              });
+
+            },
+            inputFormatters: [maskFormatter],
+            controller: phoneTextEditingController,
+            keyboardType: TextInputType.phone,
+            decoration: InputDecoration(
+              labelText: promptText,
+              labelStyle: TextStyle(fontStyle: FontStyle.italic),
+            ),
+            style: TextStyle(fontSize: 20),
+          );
+  }
+
+  TextFormField buildDateTextFormField(BuildContext context, TextEditingController dateController, String promptText) {
+    return TextFormField(
+            onTap: () {_selectDate(context, dateController);},
+            onChanged: (text){
+              setState(() {
+
+                _saved = false;
+              });
+
+            },
+            decoration: InputDecoration(
+              labelText: promptText,
+              labelStyle: TextStyle(fontStyle: FontStyle.italic),
+            ),
+            style: TextStyle(fontSize: 20),
+            controller: dateController,
+            keyboardType: TextInputType.none,
+          );
+  }
+
+  TextFormField buildTextFormField(TextEditingController textController, String inputtext) {
+    return TextFormField(
+            onChanged: (text){
+              setState(() {
+                _saved = false;
+              });
+
+            },
+              controller: textController,
+              keyboardType: TextInputType.text,
+              decoration: InputDecoration(
+                labelText: inputtext,
+                labelStyle: TextStyle(fontStyle: FontStyle.italic),
+              ),
+              style: TextStyle(fontSize: 20),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return "Please enter $inputtext";
+                }
+                return null;
+              }
+          );
+  }
   //
   addRecord (String firstName, String lastName, DateTime birthDate  )  {
+    print(birthDate);
+    print("ZZZ");
+    print(dateController.text);
+
+
+
+
+
+    // final testDate = DateFormat('MMMM d, y', 'en_US').parse(dateController.text);
+    // print(testDate);
     final myID = FirebaseAuth.instance.currentUser!.uid;
     final docUser = FirebaseFirestore.instance.collection('Users').doc(
         myID);
-    print("Saving");
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Saving User")),
     );
     if (cellPhoneNumberController.text != origCellPhone) {
       cellPhoneValidated  = false;
     }
-    print(textReminders);
     if (cellPhoneNumberController.text != origCellPhone) {
       cellPhoneValidated = false;
     }
@@ -214,18 +246,18 @@ class _PersonalInfoState extends State<PersonalInfo> {
       'CellPhone': cellPhoneNumberController.text,
       'CellPhoneValidated': cellPhoneValidated,
     };
+    print(json);
     try {
-      print("Trying");
+
        docUser.set(json)
           .then((stuff) {
-        print("saved");
+
       })
       .catchError((e) {
         print("Error Caught");
         print(e.code);
         print(e.message);
 
-        // print(Err.toString());
          if (e.code == "permission-denied") {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

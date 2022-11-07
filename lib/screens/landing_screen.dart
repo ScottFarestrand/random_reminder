@@ -4,7 +4,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:random_reminder/screens/person.dart';
 import '../services/navigation.dart';
 import '../widgets/Login.dart';
 import '../widgets/verify_email.dart';
@@ -12,23 +11,22 @@ import '../widgets/personal_info.dart';
 import '../screens/relationships_screen.dart';
 import '../widgets/register.dart';
 import '../widgets/drawer.dart';
-// import '../screens/validate_email.dart';
 
 enum PageWidgets {
   login,
   register,
 }
 
-class Landing extends StatefulWidget {
+class Landing_Screen extends StatefulWidget {
   static const id = "Landing";
 
-  const Landing({Key? key}) : super(key: key);
+  const Landing_Screen({Key? key}) : super(key: key);
 
   @override
-  State<Landing> createState() => _LandingState();
+  State<Landing_Screen> createState() => _Landing_ScreenState();
 }
 
-class _LandingState extends State<Landing> {
+class _Landing_ScreenState extends State<Landing_Screen> {
   final NavigationService nav = NavigationService.instance;
 
   var pageWidget = PageWidgets.login;

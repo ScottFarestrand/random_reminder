@@ -1,15 +1,9 @@
 import 'package:flutter/material.dart';
-// import 'package:random_reminder/screens/personal_info.dart';
-import './screens/landing.dart';
+import './screens/landing_screen.dart';
 import './services/navigation.dart';
 import './screens/relationships_screen.dart';
-import './screens/person.dart';
-
-// import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-// import './screens/personal_info.dart';
-// import './screens/people.dart';
-// import './screens/person.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,14 +21,11 @@ class MyApp extends StatelessWidget {
       navigatorKey: NavigationService.instance.navigatorKey,
       title: 'Flutter Demo',
 
-      home: Landing(),
-      initialRoute: Landing.id,
+      home: Landing_Screen(),
+      initialRoute: Landing_Screen.id,
       routes: {
-        Landing.id: (context) => Landing(),
+        Landing_Screen.id: (context) => Landing_Screen(),
         Relationships_Screen.id: (context) => Relationships_Screen(),
-        // Person.id: (context) => Person(),
-        // Screen_2.id: (context) => Screen_2(),
-        // Screen_3.id: (context) => Screen_3(),
       },
     );
   }
