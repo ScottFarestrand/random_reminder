@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
+import '../methods/text_form_Field.dart';
 // import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:random_reminder/constants/globals.dart';
 // class PersonalInfo extends StatelessWidget {
@@ -16,6 +17,7 @@ import 'package:random_reminder/constants/globals.dart';
 }
 
 class _ReminderDetailsState extends State<ReminderDetails> {
+
   final dateFormat = new DateFormat('MMM d, y');
   final firstNameController = TextEditingController();
   final lastNameController = TextEditingController();
@@ -37,6 +39,7 @@ class _ReminderDetailsState extends State<ReminderDetails> {
   String anniversaryType = "";
   bool celebrateBirthday = true;
   bool celebrateAnniversary = true;
+  bool mydata = true;
   bool _saved = true;
   // List<String> anniversaryTypes = ["Wedding", "Employement", "Adoption", "First Date"];
   String selectedAnniversaryType = "";
@@ -102,105 +105,39 @@ class _ReminderDetailsState extends State<ReminderDetails> {
             children: <Widget>[
               SizedBox(height: 20),
 
-              TextFormField(
-                  controller: firstNameController,
-                  keyboardType: TextInputType.text,
-                  decoration: InputDecoration(
-                    labelText: "First Name",
-                    labelStyle: TextStyle(fontStyle: FontStyle.italic),
-                  ),
-                  style: TextStyle(fontSize: 20),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return "Please enter First Name";
-                    }
-                    return null;
-                  }
-              ),
-              TextFormField(
-                controller: lastNameController,
-                keyboardType: TextInputType.text,
-                decoration: InputDecoration(
-                  labelText: "Last Name",
-                  labelStyle: TextStyle(fontStyle: FontStyle.italic),
-                ),
-                style: TextStyle(fontSize: 20),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return "Please enter Last Name";
-                    }
-                    return null;
-                  }
-              ),
-              Row(
-                children: [
-                  Text("Type of Relationship   "),
-                  DropdownButton<String>(
-                    value: (selectedRelationshipType == "" )? null : selectedRelationshipType,
-                    onChanged: (_value) {  // update the selectedItem value
+              buildTextFormField(firstNameController, "First Name"),
+              buildTextFormField(lastNameController, "Last Name"),
+              buildDropdownButtonRow("Type of Relationship", selectedRelationshipType, gRelationshipTypes),
+              // buildSwitchRow("Celebate Birthday", celebrateBirthday),
+              Row(children: [
+                Text("Celebrate Birthday", style: TextStyle(fontSize: 20),),
+                Switch(
+                    value: celebrateBirthday,
+                    onChanged: (bool? value) { // This is where we update the state when the checkbox is tapped
+                      print(value);
+
                       setState(() {
-                        selectedRelationshipType = _value!;
+                        print("Switched");
+                        print(value);
+                        celebrateBirthday = value!;
                       });
-                    },
-                    items: gRelationshipTypes
-                        .map<DropdownMenuItem<String>>((String _value) => DropdownMenuItem<String>(
-                        value: _value, // add this property an pass the _value to it
-                        child: Text(_value,)
-                    )).toList(),
-                  ),
-                ],
-              ),
-                  Row(children: [
-                    Text('Celebrate Birthday?', style: TextStyle(fontSize: 20),),
-                    Switch(
-                        value: celebrateBirthday,
-                        onChanged: (bool? value) { // This is where we update the state when the checkbox is tapped
-                          print(value);
+                    })
+              ],),
+              buildDate_Text_Form_Field(context, celebrateBirthday, birthDateController, "Birth Date"),
+              buildSwitchRow("Celebrate Anniversary test", mydata),
+              Row(children: [
+                Text("Celebrate Anniversary", style: TextStyle(fontSize: 20),),
+                Switch(
+                    value: celebrateAnniversary,
+                    onChanged: (bool? value) { // This is where we update the state when the checkbox is tapped
+                      print(value);
 
-                          setState(() {
-                            celebrateBirthday = value!;
-                          });
-                        })
-                  ],),
-              Visibility(
-                visible: celebrateBirthday,
-                child: TextFormField(
-                  onTap: () {_selectDate(context, birthDateController);},
-                  decoration: InputDecoration(
-                    labelText: "Birth Date",
-                    labelStyle: TextStyle(fontStyle: FontStyle.italic),
-                  ),
-                  style: TextStyle(fontSize: 20),
-                  controller: birthDateController,
-                  keyboardType: TextInputType.none,
-                ),
-              ),
-                  Row(children: [
-                    Text('Celebrate Anniversary', style: TextStyle(fontSize: 20),),
-                    Switch(
-                        value: celebrateAnniversary,
-                        onChanged: (bool? value) { // This is where we update the state when the checkbox is tapped
-                          print(value);
-
-                          setState(() {
-                            celebrateAnniversary = value!;
-                          });
-                        })
-                  ],),
-
-              Visibility(
-                visible: celebrateAnniversary,
-                child: TextFormField(
-                  onTap: () {_selectDate(context, anniversaryDateController);},
-                  decoration: InputDecoration(
-                    labelText: "Anniversary Date",
-                    labelStyle: TextStyle(fontStyle: FontStyle.italic),
-                  ),
-                  style: TextStyle(fontSize: 20),
-                  controller: anniversaryDateController,
-                  keyboardType: TextInputType.none,
-                ),
-              ),
+                      setState(() {
+                        celebrateAnniversary = value!;
+                      });
+                    })
+              ],),
+              buildDate_Text_Form_Field(context, celebrateAnniversary, anniversaryDateController, "Anniversary Date"),
               Visibility(
                 visible: celebrateAnniversary,
                 child: Row(
@@ -246,6 +183,79 @@ class _ReminderDetailsState extends State<ReminderDetails> {
       ),
     );
   }
+
+  Visibility buildDate_Text_Form_Field(BuildContext context, bool ib_visible, TextEditingController itec, String is_Lbl) {
+    return Visibility(
+              visible: ib_visible,
+              child: TextFormField(
+                onTap: () {_selectDate(context, itec);},
+                decoration: InputDecoration(
+                  labelText: is_Lbl ,
+                  labelStyle: TextStyle(fontStyle: FontStyle.italic),
+                ),
+                style: TextStyle(fontSize: 20),
+                controller: itec,
+                keyboardType: TextInputType.none,
+              ),
+            );
+  }
+
+  Row buildDropdownButtonRow(String is_lbl, String is_selectedValue, List<String> is_List ) {
+    return Row(
+              children: [
+                Text(is_lbl),
+                DropdownButton<String>(
+                  value: (is_selectedValue == "" )? null : is_selectedValue,
+                  onChanged: (_value) {  // update the selectedItem value
+                    setState(() {
+                      is_selectedValue = _value!;
+                    });
+                  },
+                  items: is_List
+                      .map<DropdownMenuItem<String>>((String _value) => DropdownMenuItem<String>(
+                      value: _value, // add this property an pass the _value to it
+                      child: Text(_value,)
+                  )).toList(),
+                ),
+              ],
+            );
+  }
+  Row buildSwitchRow(String lbl,  i_Value) {
+    print("Switch Row");
+    print(i_Value);
+    return Row(children: [
+      Text(lbl , style: TextStyle(fontSize: 20),),
+      Switch(
+          value: i_Value,
+          onChanged: (bool? value) { // This is where we update the state when the checkbox is tapped
+
+            setState(() {
+              print("Switched");
+              print(value);
+              print(mydata);
+              i_Value = value!;
+              print(mydata);
+            });
+          })
+    ],);
+  }
+  // TextFormField buildTextFormField(TextEditingController tec, String lbl) {
+  //   return TextFormField(
+  //               controller: tec,
+  //               keyboardType: TextInputType.text,
+  //               decoration: InputDecoration(
+  //                 labelText: lbl,
+  //                 labelStyle: TextStyle(fontStyle: FontStyle.italic),
+  //               ),
+  //               style: TextStyle(fontSize: 20),
+  //               validator: (value) {
+  //                 if (value == null || value.isEmpty) {
+  //                   return "Please enter /$lbl";
+  //                 }
+  //                 return null;
+  //               }
+  //           );
+  // }
   //
   addRecord (String firstName, String lastName, DateTime birthDate  )  {
     final myID = FirebaseAuth.instance.currentUser!.uid;
