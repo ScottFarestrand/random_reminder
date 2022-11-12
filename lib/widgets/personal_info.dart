@@ -100,7 +100,17 @@ class _PersonalInfoState extends State<PersonalInfo> {
             buildTextFormField(lastNameController, "Last Name"),
             buildDateTextFormField(context, birthDateController, "Birth Date"),
             buildPhoneTextFormField(cellPhoneNumberController, "Cell Phone Number"),
-            buildSelectionRow(textReminders, "Send Text Reminders"),
+            Row(children: [
+              Text('Send Text Reminders', style: TextStyle(fontSize: 20), ),
+              Switch(
+                  value: textReminders,
+                  onChanged: (bool? value) { // This is where we update the state when the checkbox is tapped
+                    setState(() {
+                      _saved = false;
+                      textReminders = value!;
+                    });
+                  })
+            ],),
             Row(children: [
               Text('Send Email Reminders', style: TextStyle(fontSize: 20), ),
               Switch(
@@ -116,11 +126,6 @@ class _PersonalInfoState extends State<PersonalInfo> {
               FirebaseAuth.instance.signOut();
             }, child: Text("Log out")),
             ElevatedButton(onPressed: (){
-
-
-
-             // DateTime zz = DateFormat('y, MMMM, d', 'en_US').parse(birthDateController.text);
-             //  print(zz);
             addRecord(firstNameController.text, lastNameController.text, birthDate);
             }, child: Text("Save")),
             Visibility(
