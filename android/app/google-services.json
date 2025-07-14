@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "762152314084",
+    "project_id": "random-reminder-mobile",
+    "storage_bucket": "random-reminder-mobile.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:762152314084:android:f46df309006ff71df9b8f1",
+        "android_client_info": {
+          "package_name": "com.example.random_reminder"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC9p8TvrclfvG3MHjMMqOVkZc8M4lM7cyQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
