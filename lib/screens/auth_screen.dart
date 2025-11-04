@@ -1,84 +1,93 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // For creating user doc
 import 'package:random_reminder/utilities/message_box.dart';
 
 class AuthScreen extends StatefulWidget {
-  final FirebaseAuth auth;
-  final Function(String, MessageType) showMessage;
-
-  const AuthScreen({super.key, required this.auth, required this.showMessage});
+  const AuthScreen({super.key});
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
 class _AuthScreenState extends State<AuthScreen> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
-  bool _isLogin = true;
   bool _isLoading = false;
+  bool _isLoginMode = true; // State to toggle between login and register
 
-  Future<void> _handleAuth() async {
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  /// Handles user registration with email and password.
+  Future<void> _register() async {
     setState(() {
       _isLoading = true;
     });
-
     try {
-      if (_isLogin) {
-        await widget.auth.signInWithEmailAndPassword(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
-        widget.showMessage('Logged in successfully!', MessageType.success);
-      } else {
-        if (_passwordController.text != _confirmPasswordController.text) {
-          widget.showMessage('Passwords do not match.', MessageType.error);
-          setState(() {
-            _isLoading = false;
-          });
-          return;
-        }
-        UserCredential userCredential = await widget.auth
-            .createUserWithEmailAndPassword(
-              email: _emailController.text,
-              password: _passwordController.text,
-            );
-        // Create a basic user document in Firestore upon registration
-        // Removed 'subscriptionStatus' as it's no longer managed by the app directly
-        await FirebaseFirestore.instance
-            .collection('artifacts')
-            .doc('default-app-id') // Ensure this matches your Firebase rules
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .set({
-              'email': userCredential.user!.email,
-              'createdAt': FieldValue.serverTimestamp(),
-            });
-        widget.showMessage(
-          'Registered and logged in successfully!',
-          MessageType.success,
-        );
-      }
+      await _auth.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      showMessageBox(
+        context,
+        "Registration successful! You are now logged in.",
+        MessageType.success,
+      );
     } on FirebaseAuthException catch (e) {
-      String errorMessage;
+      String message = 'Registration failed. Please try again.';
       if (e.code == 'weak-password') {
-        errorMessage = 'The password provided is too weak.';
+        message = 'The password provided is too weak.';
       } else if (e.code == 'email-already-in-use') {
-        errorMessage = 'The account already exists for that email.';
-      } else if (e.code == 'user-not-found' || e.code == 'wrong-password') {
-        errorMessage = 'Invalid email or password.';
-      } else if (e.code == 'operation-not-allowed') {
-        errorMessage =
-            'Email/Password sign-in is not enabled in Firebase Console.';
-      } else {
-        errorMessage = e.message ?? 'An unknown authentication error occurred.';
+        message = 'An account already exists for that email.';
+      } else if (e.code == 'invalid-email') {
+        message = 'The email address is not valid.';
       }
-      widget.showMessage(errorMessage, MessageType.error);
+      showMessageBox(context, message, MessageType.error);
     } catch (e) {
-      widget.showMessage('An unexpected error occurred: $e', MessageType.error);
+      showMessageBox(
+        context,
+        "An unexpected error occurred: $e",
+        MessageType.error,
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  /// Handles user login with email and password.
+  Future<void> _login() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      await _auth.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      showMessageBox(context, "Login successful!", MessageType.success);
+    } on FirebaseAuthException catch (e) {
+      String message = 'Login failed. Please check your credentials.';
+      if (e.code == 'user-not-found' || e.code == 'wrong-password') {
+        message = 'Invalid email or password.';
+      } else if (e.code == 'invalid-email') {
+        message = 'The email address is not valid.';
+      } else if (e.code == 'user-disabled') {
+        message = 'This user account has been disabled.';
+      }
+      showMessageBox(context, message, MessageType.error);
+    } catch (e) {
+      showMessageBox(
+        context,
+        "An unexpected error occurred: $e",
+        MessageType.error,
+      );
     } finally {
       setState(() {
         _isLoading = false;
@@ -89,6 +98,11 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text(_isLoginMode ? 'Login' : 'Register'),
+        backgroundColor: Colors.blue[600],
+        foregroundColor: Colors.white,
+      ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -102,107 +116,95 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(24.0),
             child: Card(
-              margin: const EdgeInsets.symmetric(horizontal: 24.0),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.0),
-              ),
               elevation: 8.0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15.0),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      _isLogin ? 'Login' : 'Register',
+                      _isLoginMode ? 'Welcome Back!' : 'Create Your Account',
                       style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF37474F), // gray-800
+                        color: Colors.black87,
                       ),
+                      textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 24),
-                    TextField(
+                    const SizedBox(height: 30),
+                    TextFormField(
                       controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         labelText: 'Email',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
+                        hintText: 'your@example.com',
                         prefixIcon: const Icon(Icons.email),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[100],
                       ),
-                      keyboardType: TextInputType.emailAddress,
                     ),
                     const SizedBox(height: 16),
-                    TextField(
+                    TextFormField(
                       controller: _passwordController,
+                      obscureText: true,
                       decoration: InputDecoration(
                         labelText: 'Password',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
+                        hintText: '••••••••',
                         prefixIcon: const Icon(Icons.lock),
-                      ),
-                      obscureText: true,
-                    ),
-                    if (!_isLogin) ...[
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _confirmPasswordController,
-                        decoration: InputDecoration(
-                          labelText: 'Confirm Password',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          prefixIcon: const Icon(Icons.lock_reset),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        obscureText: true,
+                        filled: true,
+                        fillColor: Colors.grey[100],
                       ),
-                    ],
-                    const SizedBox(height: 24),
+                    ),
+                    const SizedBox(height: 30),
                     _isLoading
                         ? const CircularProgressIndicator()
-                        : ElevatedButton(
-                            onPressed: _handleAuth,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(
-                                0xFF2196F3,
-                              ), // blue-600
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8.0),
+                        : SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _isLoginMode ? _login : _register,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue[600],
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 15,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                elevation: 5,
+                                textStyle: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 40,
-                                vertical: 14,
-                              ),
-                              minimumSize: const Size(double.infinity, 50),
-                            ),
-                            child: Text(
-                              _isLogin ? 'Login' : 'Register',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
+                              child: Text(_isLoginMode ? 'Login' : 'Register'),
                             ),
                           ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     TextButton(
                       onPressed: () {
                         setState(() {
-                          _isLogin = !_isLogin;
+                          _isLoginMode = !_isLoginMode;
+                          _emailController.clear();
                           _passwordController.clear();
-                          _confirmPasswordController.clear();
                         });
                       },
                       child: Text(
-                        _isLogin
-                            ? "Don't have an account? Register here"
-                            : "Already have an account? Login here",
-                        style: const TextStyle(
-                          color: Color(0xFF2196F3),
-                        ), // blue-600
+                        _isLoginMode
+                            ? 'Don\'t have an account? Register here.'
+                            : 'Already have an account? Login here.',
+                        style: TextStyle(color: Colors.blue[800]),
                       ),
                     ),
                   ],

@@ -1,39 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:random_reminder/utilities/fixed_date.dart';
 
-class FixedDate {
-  final String type;
-  final DateTime date;
-  final String? customName;
-
-  FixedDate({required this.type, required this.date, this.customName});
-
-  factory FixedDate.fromMap(Map<String, dynamic> map) {
-    return FixedDate(
-      type: map['type'] as String,
-      date: (map['date'] as Timestamp).toDate(),
-      customName: map['customName'] as String?,
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'type': type,
-      'date': Timestamp.fromDate(date),
-      'customName': customName,
-    };
-  }
-}
-
+// Model for a Person
 class Person {
-  String? id; // Firestore document ID
+  final String? id;
   final String name;
   final String type;
   final List<FixedDate> fixedDates;
   final int randomRemindersPerYear;
-  final List<DateTime> randomDates; // Stored as DateTime objects
-  final String reminderPreference; // 'none', 'email', 'sms'
-  final String? contactEmail;
-  final String? contactPhone;
+  final List<DateTime> randomDates;
+  final DateTime createdAt;
 
   Person({
     this.id,
@@ -42,49 +18,71 @@ class Person {
     required this.fixedDates,
     required this.randomRemindersPerYear,
     required this.randomDates,
-    this.reminderPreference = 'none', // Default to none
-    this.contactEmail,
-    this.contactPhone,
+    required this.createdAt,
   });
 
-  factory Person.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  // copyWith method for immutability and updating specific fields
+  Person copyWith({
+    String? id,
+    String? name,
+    String? type,
+    List<FixedDate>? fixedDates,
+    int? randomRemindersPerYear,
+    List<DateTime>? randomDates,
+    DateTime? createdAt,
+  }) {
     return Person(
-      id: doc.id,
-      name: data['name'] as String,
-      type: data['type'] as String,
-      fixedDates:
-          (data['fixedDates'] as List<dynamic>?)
-              ?.map((fd) => FixedDate.fromMap(fd as Map<String, dynamic>))
-              .toList() ??
-          [],
-      randomRemindersPerYear: data['randomRemindersPerYear'] as int,
-      randomDates:
-          (data['randomDates'] as List<dynamic>?)
-              ?.map((rd) => (rd as Timestamp).toDate())
-              .toList() ??
-          [],
-      reminderPreference: data['reminderPreference'] as String? ?? 'none',
-      contactEmail: data['contactEmail'] as String?,
-      contactPhone: data['contactPhone'] as String?,
+      id: id ?? this.id,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      fixedDates: fixedDates ?? this.fixedDates,
+      randomRemindersPerYear:
+          randomRemindersPerYear ?? this.randomRemindersPerYear,
+      randomDates: randomDates ?? this.randomDates,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 
-  Map<String, dynamic> toFirestore() {
+  // Convert a Person object to a Map for Firestore
+  Map<String, dynamic> toMap() {
     return {
       'name': name,
       'type': type,
-      'fixedDates': fixedDates.map((fd) => fd.toMap()).toList(),
+      'fixedDates': fixedDates
+          .map((fd) => fd.toMap())
+          .toList(), // Convert FixedDate objects
       'randomRemindersPerYear': randomRemindersPerYear,
-      'randomDates': randomDates.map((rd) => Timestamp.fromDate(rd)).toList(),
-      'reminderPreference': reminderPreference,
-      'contactEmail': contactEmail,
-      'contactPhone': contactPhone,
-      'createdAt': FieldValue.serverTimestamp(),
+      'randomDates': randomDates
+          .map((date) => Timestamp.fromDate(date))
+          .toList(),
+      'createdAt': Timestamp.fromDate(createdAt),
     };
+  }
+
+  // Create a Person object from a Firestore DocumentSnapshot
+  factory Person.fromDocument(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Person(
+      id: doc.id,
+      name: data['name'] ?? '',
+      type: data['type'] ?? 'employee',
+      fixedDates:
+          (data['fixedDates'] as List<dynamic>?)
+              ?.map((map) => FixedDate.fromMap(map as Map<String, dynamic>))
+              .toList() ??
+          [],
+      randomRemindersPerYear: data['randomRemindersPerYear'] ?? 0,
+      randomDates:
+          (data['randomDates'] as List<dynamic>?)
+              ?.map((ts) => (ts as Timestamp).toDate())
+              .toList() ??
+          [],
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+    );
   }
 }
 
+// Model for a Reminder
 class Reminder {
   final String id;
   final String personName;

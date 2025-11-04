@@ -1,34 +1,30 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserPreferences {
-  final String userId;
-  final String reminderPreference; // 'none', 'email', 'sms'
   final String? contactEmail;
   final String? contactPhone;
+  final String reminderPreference; // 'email', 'sms', 'both', 'none'
 
   UserPreferences({
-    required this.userId,
-    this.reminderPreference = 'none',
     this.contactEmail,
     this.contactPhone,
+    required this.reminderPreference,
   });
 
-  factory UserPreferences.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>?; // Use nullable map
-    return UserPreferences(
-      userId: doc.id,
-      reminderPreference: data?['reminderPreference'] as String? ?? 'none',
-      contactEmail: data?['contactEmail'] as String?,
-      contactPhone: data?['contactPhone'] as String?,
-    );
-  }
-
-  Map<String, dynamic> toFirestore() {
+  Map<String, dynamic> toMap() {
     return {
-      'reminderPreference': reminderPreference,
       'contactEmail': contactEmail,
       'contactPhone': contactPhone,
-      'lastUpdatedPreferences': FieldValue.serverTimestamp(),
+      'reminderPreference': reminderPreference,
     };
+  }
+
+  factory UserPreferences.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>?;
+    return UserPreferences(
+      contactEmail: data?['contactEmail'],
+      contactPhone: data?['contactPhone'],
+      reminderPreference: data?['reminderPreference'] ?? 'none',
+    );
   }
 }

@@ -4,101 +4,58 @@ import 'package:random_reminder/models/user_preferences.dart'; // NEW
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final String _appId = const String.fromEnvironment(
+    'APP_ID',
+    defaultValue: 'default-app-id',
+  );
 
-  // IMPORTANT: Ensure this APP_ID matches the one used in your Firebase Security Rules
-  // and the one used in your Cloud Functions (functions/index.js)
-  final String _appId =
-      'default-app-id'; // Replace with your actual appId if different in rules
-
-  // Get stream of user's document (for general user data, including preferences)
-  Stream<DocumentSnapshot> getUserStream(String userId) {
-    return _db
-        .collection('artifacts')
-        .doc(_appId)
-        .collection('users')
-        .doc(userId)
-        .snapshots();
+  // Helper to get user-specific collection reference
+  CollectionReference _getPeopleCollectionRef(String userId) {
+    return _db.collection('artifacts/$_appId/users/$userId/people');
   }
 
-  // NEW: Get stream of user preferences
-  Stream<UserPreferences> getUserPreferencesStream(String userId) {
-    return _db
-        .collection('artifacts')
-        .doc(_appId)
-        .collection('users')
-        .doc(userId)
-        .snapshots()
-        .map((snapshot) => UserPreferences.fromFirestore(snapshot));
+  // Helper to get user preferences document reference
+  DocumentReference _getUserPreferencesDocRef(String userId) {
+    return _db.collection('artifacts/$_appId/users').doc(userId);
   }
 
-  // NEW: Update user preferences
-  Future<void> updateUserPreferences(
-    String userId,
-    UserPreferences preferences,
-  ) async {
-    await _db
-        .collection('artifacts')
-        .doc(_appId)
-        .collection('users')
-        .doc(userId)
-        .set(
-          preferences.toFirestore(),
-          SetOptions(
-            merge: true,
-          ), // Use merge: true to only update specified fields
-        );
-  }
-
-  // Get stream of people for a specific user
+  // Get stream of people for a user
   Stream<List<Person>> getPeopleStream(String userId) {
-    return _db
-        .collection('artifacts')
-        .doc(_appId)
-        .collection('users')
-        .doc(userId)
-        .collection('people')
-        .snapshots()
-        .map(
-          (snapshot) =>
-              snapshot.docs.map((doc) => Person.fromFirestore(doc)).toList(),
-        );
+    return _getPeopleCollectionRef(userId).snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => Person.fromDocument(doc)).toList();
+    });
   }
 
   // Add a new person
   Future<void> addPerson(String userId, Person person) async {
-    await _db
-        .collection('artifacts')
-        .doc(_appId)
-        .collection('users')
-        .doc(userId)
-        .collection('people')
-        .add(person.toFirestore());
+    await _getPeopleCollectionRef(userId).add(person.toMap());
   }
 
   // Update an existing person
   Future<void> updatePerson(String userId, Person person) async {
     if (person.id == null) {
-      throw Exception("Cannot update person: ID is null.");
+      throw Exception("Cannot update person without an ID.");
     }
-    await _db
-        .collection('artifacts')
-        .doc(_appId)
-        .collection('users')
-        .doc(userId)
-        .collection('people')
-        .doc(person.id)
-        .update(person.toFirestore()); // Use update for existing document
+    await _getPeopleCollectionRef(userId).doc(person.id).update(person.toMap());
   }
 
   // Delete a person
   Future<void> deletePerson(String userId, String personId) async {
-    await _db
-        .collection('artifacts')
-        .doc(_appId)
-        .collection('users')
-        .doc(userId)
-        .collection('people')
-        .doc(personId)
-        .delete();
+    await _getPeopleCollectionRef(userId).doc(personId).delete();
+  }
+
+  // Get stream of user preferences
+  Stream<DocumentSnapshot> getUserStream(String userId) {
+    return _getUserPreferencesDocRef(userId).snapshots();
+  }
+
+  // Save/Update user preferences
+  Future<void> saveUserPreferences(
+    String userId,
+    UserPreferences preferences,
+  ) async {
+    await _getUserPreferencesDocRef(
+      userId,
+    ).set(preferences.toMap(), SetOptions(merge: true));
   }
 }
