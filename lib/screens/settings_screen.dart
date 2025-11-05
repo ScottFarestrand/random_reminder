@@ -1,224 +1,243 @@
 import 'package:flutter/material.dart';
-import 'package:random_reminder/models/user_preferences.dart';
-import 'package:random_reminder/services/firestore_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:random_reminder/models/user_profile.dart'; // Import the model
 import 'package:random_reminder/utilities/message_box.dart';
 
 class SettingsScreen extends StatefulWidget {
   final String userId;
-  final Function(String, MessageType) showMessage;
+  final Function(String, MessageType) showMessage; // <-- ADD THIS
 
   const SettingsScreen({
     super.key,
     required this.userId,
-    required this.showMessage,
+    required this.showMessage, // <-- ADD THIS
   });
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  _SettingsScreenState createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final FirestoreService _firestoreService = FirestoreService();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  String _reminderPreference = 'none';
-  bool _isLoading = false;
+  // Firebase instances
+  final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
+
+  // Controllers to manage the text fields
+  late TextEditingController _emailController;
+  late TextEditingController _phoneController;
+
+  // This future will hold our user profile data
+  late Future<UserProfile> _userProfileFuture;
+
+  // This will hold the loaded profile
+  UserProfile? _userProfile;
 
   @override
   void initState() {
     super.initState();
-    _loadUserPreferences();
+    _emailController = TextEditingController();
+    _phoneController = TextEditingController();
+
+    // Start fetching the user profile as soon as the widget is created
+    _userProfileFuture = _fetchUserProfile();
   }
 
   @override
   void dispose() {
+    // Clean up controllers
     _emailController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadUserPreferences() async {
-    setState(() {
-      _isLoading = true;
-    });
-    try {
-      final userDoc = await _firestoreService
-          .getUserStream(widget.userId)
-          .first;
-      if (userDoc.exists) {
-        final preferences = UserPreferences.fromFirestore(userDoc);
-        _emailController.text = preferences.contactEmail ?? '';
-        _phoneController.text = preferences.contactPhone ?? '';
-        _reminderPreference = preferences.reminderPreference;
+  /// Fetches the UserProfile from Firestore.
+  Future<UserProfile> _fetchUserProfile() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      // This shouldn't happen if they are on this screen, but good to check
+      throw Exception("No authenticated user found.");
+    }
+
+    final docRef = _firestore.collection('users').doc(user.uid);
+    final docSnap = await docRef.get();
+
+    UserProfile profile;
+    if (docSnap.exists) {
+      // User has a profile, load it
+      profile = UserProfile.fromMap(user.uid, docSnap.data());
+    } else {
+      // First time user, create a default profile for them
+      profile = UserProfile.empty(user.uid);
+      // We MUST save this back to Firestore to create the document
+      await docRef.set(profile.toMap()); // <-- THIS IS THE FIX
+    }
+
+    // Set controller text and store the profile
+    _emailController.text = profile.email ?? '';
+    _phoneController.text = profile.phone ?? '';
+    _userProfile = profile; // Store for later use in verify buttons
+
+    return profile;
+  }
+
+  /// Saves the current text in the controllers to Firestore
+  Future<void> _saveProfile() async {
+    if (_userProfile == null) return; // Not loaded yet
+
+    final newEmail = _emailController.text.trim();
+    final newPhone = _phoneController.text.trim();
+
+    // Only update if text actually changed
+    final Map<String, dynamic> updates = {};
+    if (newEmail != (_userProfile!.email ?? '')) {
+      updates['email'] = newEmail;
+      updates['isEmailVerified'] = false; // Require re-verification
+    }
+    if (newPhone != (_userProfile!.phone ?? '')) {
+      updates['phone'] = newPhone;
+      updates['isPhoneVerified'] = false; // Require re-verification
+    }
+
+    if (updates.isNotEmpty) {
+      try {
+        final docRef = _firestore.collection('users').doc(_userProfile!.uid);
+        await docRef.set(updates, SetOptions(merge: true));
+
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile saved!'), backgroundColor: Colors.green));
+        // Refresh the profile data
+        setState(() {
+          _userProfileFuture = _fetchUserProfile();
+        });
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error saving profile: $e'), backgroundColor: Colors.red));
       }
-    } catch (e) {
-      widget.showMessage(
-        'Failed to load settings: ${e.toString()}',
-        MessageType.error,
-      );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
-  Future<void> _savePreferences() async {
-    setState(() {
-      _isLoading = true;
-    });
-    try {
-      final preferences = UserPreferences(
-        contactEmail: _emailController.text.trim().isEmpty
-            ? null
-            : _emailController.text.trim(),
-        contactPhone: _phoneController.text.trim().isEmpty
-            ? null
-            : _phoneController.text.trim(),
-        reminderPreference: _reminderPreference,
-      );
-      await _firestoreService.saveUserPreferences(widget.userId, preferences);
-      widget.showMessage('Settings saved successfully!', MessageType.success);
-    } catch (e) {
-      widget.showMessage(
-        'Failed to save settings: ${e.toString()}',
-        MessageType.error,
-      );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+  /// TODO: Implement Email Verification Logic
+  void _onVerifyEmailPressed() {
+    if (_userProfile == null) return;
+    _saveProfile(); // Save any changes first
+
+    if (_userProfile!.isEmailVerified) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email is already verified.')));
+      return;
     }
+
+    // 1. Get the current user
+    // 2. Call user.sendEmailVerification()
+    // 3. Show a snackbar telling them to check their email
+    print('TODO: Send email verification');
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('TODO: Send email verification')));
+  }
+
+  /// TODO: Implement Phone Verification Logic
+  void _onVerifyPhonePressed() {
+    if (_userProfile == null) return;
+    _saveProfile(); // Save any changes first
+
+    if (_userProfile!.isPhoneVerified) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Phone is already verified.')));
+      return;
+    }
+
+    // This is the complex part
+    // 1. Call your Twilio/Firebase Phone Auth function
+    // 2. This will likely open a new dialog/screen to enter the 6-digit code
+    // 3. On success, update 'isPhoneVerified' to true in Firestore
+    print('TODO: Start phone verification');
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('TODO: Start phone verification')));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: const Color(0xFF2196F3),
-        foregroundColor: Colors.white,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFE3F2FD), Color(0xFFE1BEE7)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+      appBar: AppBar(title: const Text('Settings')),
+      body: FutureBuilder<UserProfile>(
+        future: _userProfileFuture,
+        builder: (context, snapshot) {
+          // --- 1. Handle Loading State ---
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          // --- 2. Handle Error State ---
+          if (snapshot.hasError) {
+            return Center(
+              child: Text('Error loading profile: ${snapshot.error}', style: const TextStyle(color: Colors.red)),
+            );
+          }
+
+          // --- 3. Handle Success State ---
+          if (!snapshot.hasData) {
+            return const Center(child: Text('User profile not found.'));
+          }
+
+          // We have the data!
+          final userProfile = snapshot.data!;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Notification Methods', style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 8),
+                const Text('Manage the email and phone number used for reminders.', style: TextStyle(fontSize: 16)),
+                const Divider(height: 32),
+
+                // --- Email Field ---
+                Text('Email Address', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(hintText: 'user@example.com', border: OutlineInputBorder()),
+                  keyboardType: TextInputType.emailAddress,
                 ),
-              ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Card(
-                  elevation: 4.0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.0),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Contact Information',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF37474F),
-                          ),
-                        ),
-                        const Divider(height: 20, thickness: 1),
-                        TextField(
-                          controller: _emailController,
-                          decoration: InputDecoration(
-                            labelText: 'Contact Email',
-                            hintText: 'e.g., your@example.com',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                          ),
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: _phoneController,
-                          decoration: InputDecoration(
-                            labelText: 'Contact Phone (for SMS)',
-                            hintText: 'e.g., +15551234567',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                          ),
-                          keyboardType: TextInputType.phone,
-                        ),
-                        const SizedBox(height: 24),
-                        const Text(
-                          'Reminder Preference',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF37474F),
-                          ),
-                        ),
-                        const Divider(height: 20, thickness: 1),
-                        DropdownButtonFormField<String>(
-                          value: _reminderPreference,
-                          decoration: InputDecoration(
-                            labelText:
-                                'How would you like to receive reminders?',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'none',
-                              child: Text('None'),
-                            ),
-                            // Removed 'email' and 'both' options based on previous request
-                            // DropdownMenuItem(value: 'email', child: Text('Email')),
-                            DropdownMenuItem(value: 'sms', child: Text('SMS')),
-                            // DropdownMenuItem(value: 'both', child: Text('Both Email & SMS')),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                _reminderPreference = value;
-                              });
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 32),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _savePreferences,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2196F3),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8.0),
-                              ),
-                              elevation: 3,
-                            ),
-                            child: const Text(
-                              'Save Settings',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: _onVerifyEmailPressed,
+                    icon: Icon(userProfile.isEmailVerified ? Icons.check_circle : Icons.warning, color: userProfile.isEmailVerified ? Colors.green : Colors.orange),
+                    label: Text(userProfile.isEmailVerified ? 'Verified' : 'Verify Email'),
                   ),
                 ),
-              ),
+                const SizedBox(height: 24),
+
+                // --- Phone Field ---
+                Text('Phone Number', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _phoneController,
+                  decoration: const InputDecoration(hintText: '+15551234567', border: OutlineInputBorder()),
+
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: _onVerifyPhonePressed,
+                    icon: Icon(userProfile.isPhoneVerified ? Icons.check_circle : Icons.warning, color: userProfile.isPhoneVerified ? Colors.green : Colors.orange),
+                    label: Text(userProfile.isPhoneVerified ? 'Verified' : 'Verify Phone'),
+                  ),
+                ),
+
+                const SizedBox(height: 40),
+                Center(
+                  child: ElevatedButton(
+                    onPressed: _saveProfile,
+                    child: const Text('Save Changes'),
+                    style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15), textStyle: const TextStyle(fontSize: 16)),
+                  ),
+                ),
+              ],
             ),
+          );
+        },
+      ),
     );
   }
 }

@@ -4,24 +4,29 @@ import 'package:random_reminder/models/user_preferences.dart'; // NEW
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final String _appId = const String.fromEnvironment(
-    'APP_ID',
-    defaultValue: 'default-app-id',
-  );
+  final String _appId = const String.fromEnvironment('APP_ID', defaultValue: 'default-app-id');
 
   // Helper to get user-specific collection reference
   CollectionReference _getPeopleCollectionRef(String userId) {
-    return _db.collection('artifacts/$_appId/users/$userId/people');
+    return _db.collection('users').doc(userId).collection('people');
   }
 
   // Helper to get user preferences document reference
   DocumentReference _getUserPreferencesDocRef(String userId) {
-    return _db.collection('artifacts/$_appId/users').doc(userId);
+    return _db.collection('users').doc(userId);
   }
 
   // Get stream of people for a user
   Stream<List<Person>> getPeopleStream(String userId) {
-    return _getPeopleCollectionRef(userId).snapshots().map((snapshot) {
+    final ref = _getPeopleCollectionRef(userId);
+
+    // This is a much better debug line
+    print('FirestoreService: Querying path: ${ref.path}');
+
+    return ref.snapshots().map((snapshot) {
+      // And this tells us if the query worked
+      print('FirestoreService: Snapshot received, doc count: ${snapshot.docs.length}');
+
       return snapshot.docs.map((doc) => Person.fromDocument(doc)).toList();
     });
   }
@@ -50,12 +55,7 @@ class FirestoreService {
   }
 
   // Save/Update user preferences
-  Future<void> saveUserPreferences(
-    String userId,
-    UserPreferences preferences,
-  ) async {
-    await _getUserPreferencesDocRef(
-      userId,
-    ).set(preferences.toMap(), SetOptions(merge: true));
+  Future<void> saveUserPreferences(String userId, UserPreferences preferences) async {
+    await _getUserPreferencesDocRef(userId).set(preferences.toMap(), SetOptions(merge: true));
   }
 }

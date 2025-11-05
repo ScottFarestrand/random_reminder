@@ -24,6 +24,14 @@ class _PeopleListScreenState extends State<PeopleListScreen> {
     super.dispose();
   }
 
+  void _showMessage(String message, Color color) {
+    final type = (color == Colors.green) ? MessageType.success : MessageType.error;
+    // We add a 'mounted' check here for safety
+    if (mounted) {
+      showMessageBox(context, message, type);
+    }
+  }
+
   /// Deletes a person from Firestore.
   Future<void> _deletePerson(String personId, String personName) async {
     final confirmed =
@@ -31,18 +39,10 @@ class _PeopleListScreenState extends State<PeopleListScreen> {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Delete Person'),
-            content: Text(
-              'Are you sure you want to delete $personName? This cannot be undone.',
-            ),
+            content: Text('Are you sure you want to delete $personName? This cannot be undone.'),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('No'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Yes'),
-              ),
+              TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('No')),
+              TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Yes')),
             ],
           ),
         ) ??
@@ -55,17 +55,9 @@ class _PeopleListScreenState extends State<PeopleListScreen> {
     });
     try {
       await _firestoreService.deletePerson(widget.userId, personId);
-      showMessageBox(
-        context,
-        'Person deleted successfully!',
-        MessageType.success,
-      );
+      showMessageBox(context, 'Person deleted successfully!', MessageType.success);
     } catch (e) {
-      showMessageBox(
-        context,
-        'Failed to delete person: ${e.toString()}',
-        MessageType.error,
-      );
+      showMessageBox(context, 'Failed to delete person: ${e.toString()}', MessageType.error);
     } finally {
       setState(() {
         _isLoading = false;
@@ -81,6 +73,7 @@ class _PeopleListScreenState extends State<PeopleListScreen> {
         builder: (context) => AddEditPersonScreen(
           userId: widget.userId,
           personToEdit: person, // Pass the person object for editing
+          showMessage: _showMessage,
         ),
       ),
     );
@@ -91,7 +84,10 @@ class _PeopleListScreenState extends State<PeopleListScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddEditPersonScreen(userId: widget.userId),
+        builder: (context) => AddEditPersonScreen(
+          userId: widget.userId,
+          showMessage: _showMessage, // <-- ADD THIS
+        ),
       ),
     );
   }
@@ -99,20 +95,12 @@ class _PeopleListScreenState extends State<PeopleListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your People'),
-        backgroundColor: const Color(0xFF2196F3),
-        foregroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: const Text('Your People'), backgroundColor: const Color(0xFF2196F3), foregroundColor: Colors.white),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Container(
               decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFE3F2FD), Color(0xFFE1BEE7)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                gradient: LinearGradient(colors: [Color(0xFFE3F2FD), Color(0xFFE1BEE7)], begin: Alignment.topLeft, end: Alignment.bottomRight),
               ),
               child: StreamBuilder<List<Person>>(
                 stream: _firestoreService.getPeopleStream(widget.userId),
@@ -143,9 +131,7 @@ class _PeopleListScreenState extends State<PeopleListScreen> {
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 8.0),
                         elevation: 2.0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
                         child: Padding(
                           padding: const EdgeInsets.all(12.0),
                           child: Row(
@@ -155,39 +141,17 @@ class _PeopleListScreenState extends State<PeopleListScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      '${person.name} (${(person.type).capitalize()})',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Text(
-                                      'Random Reminders: ${person.randomRemindersPerYear}',
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
+                                    Text('${person.name} (${(person.type).capitalize()})', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                    Text('Random Reminders: ${person.randomRemindersPerYear}', style: const TextStyle(fontSize: 13, color: Colors.grey)),
                                     if (person.fixedDates.isNotEmpty) ...[
                                       const SizedBox(height: 8),
-                                      const Text(
-                                        'Fixed Events:',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
+                                      const Text('Fixed Events:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                                       Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: person.fixedDates.map((fd) {
                                           return Text(
                                             '• ${fd.type == 'custom' ? fd.customName : (fd.type).capitalize()}: ${DateFormat.yMd().format(fd.date)}',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey,
-                                            ),
+                                            style: const TextStyle(fontSize: 12, color: Colors.grey),
                                           );
                                         }).toList(),
                                       ),
@@ -198,20 +162,13 @@ class _PeopleListScreenState extends State<PeopleListScreen> {
                               Column(
                                 children: [
                                   IconButton(
-                                    icon: const Icon(
-                                      Icons.edit,
-                                      color: Colors.green,
-                                    ),
+                                    icon: const Icon(Icons.edit, color: Colors.green),
                                     onPressed: () => _editPerson(person),
                                     tooltip: 'Edit Person',
                                   ),
                                   IconButton(
-                                    icon: const Icon(
-                                      Icons.delete,
-                                      color: Colors.red,
-                                    ),
-                                    onPressed: () =>
-                                        _deletePerson(person.id!, person.name),
+                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () => _deletePerson(person.id!, person.name),
                                     tooltip: 'Delete Person',
                                   ),
                                 ],

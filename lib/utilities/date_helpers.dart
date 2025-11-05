@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:random_reminder/models/person.dart';
 import 'package:random_reminder/utilities/fixed_date.dart';
+import 'package:random_reminder/models/reminder.dart';
 
 class DateHelpers {
   // Function to normalize a DateTime object to YYYY-MM-DD (start of day)
@@ -10,10 +11,7 @@ class DateHelpers {
 
   /// Generates unique random dates for the current year, all in the future,
   /// at least 4 weeks apart, and capped at 8 dates.
-  static List<DateTime> generateRandomDates({
-    required int numReminders,
-    required List<FixedDate> fixedDates,
-  }) {
+  static List<DateTime> generateRandomDates({required int numReminders, required List<FixedDate> fixedDates}) {
     final List<DateTime> generatedDates = [];
     final DateTime today = normalizeDate(DateTime.now());
     final int currentYear = today.year;
@@ -23,39 +21,27 @@ class DateHelpers {
     numReminders = min(numReminders, 8);
 
     int attempts = 0;
-    const int maxAttemptsPerDate =
-        1000; // Max attempts to find a single valid date
+    const int maxAttemptsPerDate = 1000; // Max attempts to find a single valid date
     const int minDaysApart = 28; // 4 weeks
 
     // Collect all dates to exclude (fixed dates + already generated random dates)
     final List<DateTime> allExcludedDates = fixedDates.map((fd) {
       // Consider fixed date for current year
-      DateTime fixedDateThisYear = DateTime(
-        currentYear,
-        fd.date.month,
-        fd.date.day,
-      );
+      DateTime fixedDateThisYear = DateTime(currentYear, fd.date.month, fd.date.day);
       // If fixed date for current year has passed, consider next year's
       if (fixedDateThisYear.isBefore(today)) {
-        fixedDateThisYear = DateTime(
-          currentYear + 1,
-          fd.date.month,
-          fd.date.day,
-        );
+        fixedDateThisYear = DateTime(currentYear + 1, fd.date.month, fd.date.day);
       }
       return normalizeDate(fixedDateThisYear);
     }).toList();
 
-    while (generatedDates.length < numReminders &&
-        attempts < numReminders * maxAttemptsPerDate) {
+    while (generatedDates.length < numReminders && attempts < numReminders * maxAttemptsPerDate) {
       bool newDateFound = false;
       int currentAttempt = 0;
 
       while (!newDateFound && currentAttempt < maxAttemptsPerDate) {
         final int month = random.nextInt(12) + 1; // 1-12
-        final int day =
-            random.nextInt(28) +
-            1; // 1-28 to simplify, avoiding month-end issues for now
+        final int day = random.nextInt(28) + 1; // 1-28 to simplify, avoiding month-end issues for now
 
         DateTime newRandomDate = DateTime(currentYear, month, day);
 
@@ -69,10 +55,7 @@ class DateHelpers {
 
         // Check if the new date is too close to any already generated dates or excluded fixed dates
         bool isTooClose = false;
-        final List<DateTime> allCheckedDates = [
-          ...generatedDates,
-          ...allExcludedDates,
-        ];
+        final List<DateTime> allCheckedDates = [...generatedDates, ...allExcludedDates];
 
         for (final existingDate in allCheckedDates) {
           final Duration diff = newRandomDate.difference(existingDate).abs();
@@ -84,15 +67,10 @@ class DateHelpers {
 
         // Also ensure it's not the exact same month/day as any fixed date (for this or next year)
         for (final fixedDate in fixedDates) {
-          final DateTime fixedDateCurrentYear = normalizeDate(
-            DateTime(currentYear, fixedDate.date.month, fixedDate.date.day),
-          );
-          final DateTime fixedDateNextYear = normalizeDate(
-            DateTime(currentYear + 1, fixedDate.date.month, fixedDate.date.day),
-          );
+          final DateTime fixedDateCurrentYear = normalizeDate(DateTime(currentYear, fixedDate.date.month, fixedDate.date.day));
+          final DateTime fixedDateNextYear = normalizeDate(DateTime(currentYear + 1, fixedDate.date.month, fixedDate.date.day));
 
-          if (newRandomDate == fixedDateCurrentYear ||
-              newRandomDate == fixedDateNextYear) {
+          if (newRandomDate == fixedDateCurrentYear || newRandomDate == fixedDateNextYear) {
             isTooClose = true;
             break;
           }
@@ -131,32 +109,25 @@ class DateHelpers {
 
         final List<DateTime> datesToConsider = [];
         // Consider this year's fixed event
-        final DateTime thisYearEvent = normalizeDate(
-          DateTime(currentYear, eventDate.month, eventDate.day),
-        );
+        final DateTime thisYearEvent = normalizeDate(DateTime(currentYear, eventDate.month, eventDate.day));
         datesToConsider.add(thisYearEvent);
 
         // If this year's event has passed, also consider next year's
         if (thisYearEvent.isBefore(normalizedToday)) {
-          final DateTime nextYearEvent = normalizeDate(
-            DateTime(currentYear + 1, eventDate.month, eventDate.day),
-          );
+          final DateTime nextYearEvent = normalizeDate(DateTime(currentYear + 1, eventDate.month, eventDate.day));
           datesToConsider.add(nextYearEvent);
         }
 
         for (var eventConsiderationDate in datesToConsider) {
           const List<int> reminderOffsets = [0, 1, 5, 10]; // Days before
           for (var offset in reminderOffsets) {
-            final DateTime reminderDate = eventConsiderationDate.subtract(
-              Duration(days: offset),
-            );
+            final DateTime reminderDate = eventConsiderationDate.subtract(Duration(days: offset));
             final DateTime normalizedReminderDate = normalizeDate(reminderDate);
 
             // Only add if the reminder date is today or in the future
             if (!normalizedReminderDate.isBefore(normalizedToday)) {
               reminders.add(
                 Reminder(
-                  id: '${person.id}-${eventConsiderationDate.toIso8601String()}-$offset',
                   personName: personName,
                   personType: personType,
                   originalDate: eventConsiderationDate,
@@ -176,26 +147,19 @@ class DateHelpers {
         for (var rd in person.randomDates) {
           final DateTime randomDate = rd;
           // Consider this year's random date
-          final DateTime thisYearRandomDate = normalizeDate(
-            DateTime(currentYear, randomDate.month, randomDate.day),
-          );
+          final DateTime thisYearRandomDate = normalizeDate(DateTime(currentYear, randomDate.month, randomDate.day));
 
           // Only consider if the random date is today or in the future
           if (!thisYearRandomDate.isBefore(normalizedToday)) {
             const List<int> reminderOffsets = [0, 1, 5, 10]; // Days before
             for (var offset in reminderOffsets) {
-              final DateTime reminderDate = thisYearRandomDate.subtract(
-                Duration(days: offset),
-              );
-              final DateTime normalizedReminderDate = normalizeDate(
-                reminderDate,
-              );
+              final DateTime reminderDate = thisYearRandomDate.subtract(Duration(days: offset));
+              final DateTime normalizedReminderDate = normalizeDate(reminderDate);
 
               // Only add if the reminder date is today or in the future
               if (!normalizedReminderDate.isBefore(normalizedToday)) {
                 reminders.add(
                   Reminder(
-                    id: '${person.id}-random-${thisYearRandomDate.toIso8601String()}-$offset',
                     personName: personName,
                     personType: personType,
                     originalDate: thisYearRandomDate,
@@ -224,9 +188,6 @@ extension StringExtension on String {
     if (isEmpty) {
       return this;
     }
-    return '${this[0].toUpperCase()}${substring(1).toLowerCase()}'.replaceAll(
-      '_',
-      ' ',
-    );
+    return '${this[0].toUpperCase()}${substring(1).toLowerCase()}'.replaceAll('_', ' ');
   }
 }
