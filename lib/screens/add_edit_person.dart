@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:random_reminder/models/person.dart';
-import 'package:random_reminder/utilities/fixed_date.dart'; // <-- RIGHT
-import 'package:random_reminder/utilities/date_helpers.dart';
+import 'package:random_reminder/utilities/fixed_date.dart';
+import 'package:random_reminder/utilities/date_helpers.dart'; // For .capitalize()
+import 'dart:math'; // For random date calculation
+import 'package:random_reminder/widgets/fixed_date_dialog.dart'; // Import dialog
 
-// Define an enum for clarity
-enum PersonType { random, fixed }
+// 'PersonType' enum is now GONE.
 
 class AddEditPersonScreen extends StatefulWidget {
   final String userId;
@@ -23,10 +24,11 @@ class _AddEditPersonScreenState extends State<AddEditPersonScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
 
-  // --- NEW STATE VARIABLES ---
-  PersonType _personType = PersonType.random;
-  double _randomRemindersPerYear = 3;
+  // State variables
+  // _personType is GONE.
+  double _randomRemindersPerYear = 0; // Default to 0
   List<FixedDate> _fixedDates = [];
+  DateTime? _nextRandomDate;
 
   @override
   void initState() {
@@ -34,10 +36,10 @@ class _AddEditPersonScreenState extends State<AddEditPersonScreen> {
     if (widget.personToEdit != null) {
       final person = widget.personToEdit!;
       _nameController.text = person.name;
-      _personType = person.type == 'random' ? PersonType.random : PersonType.fixed;
+      // 'type' logic is GONE.
       _randomRemindersPerYear = person.randomRemindersPerYear.toDouble();
-      // Create a new list from the old one to avoid modifying the original
       _fixedDates = List<FixedDate>.from(person.fixedDates);
+      _nextRandomDate = person.nextRandomReminderDate;
     }
   }
 
@@ -47,33 +49,42 @@ class _AddEditPersonScreenState extends State<AddEditPersonScreen> {
     super.dispose();
   }
 
-  /// --- RE-WRITTEN SAVE FUNCTION ---
+  /// --- UPDATED SAVE FUNCTION ---
   void _savePerson() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
+      // --- NEW: Simplified Calculation Logic ---
+      if (_randomRemindersPerYear > 0) {
+        // Only calculate a new date if one doesn't already exist.
+        if (_nextRandomDate == null) {
+          print("Calculating first random reminder date...");
+          _nextRandomDate = _calculateNextRandomDate(remindersPerYear: _randomRemindersPerYear.toInt(), personFixedDates: _fixedDates);
+        }
+      } else {
+        // If slider is at 0, wipe any pending random date.
+        _nextRandomDate = null;
+      }
+
       // Create the new Person object
       final person = Person(
-        id: widget.personToEdit?.id, // Keep ID if editing
+        id: widget.personToEdit?.id,
         name: _nameController.text,
-        type: _personType == PersonType.random ? 'random' : 'fixed',
+        // 'type' is GONE.
         randomRemindersPerYear: _randomRemindersPerYear.toInt(),
         fixedDates: _fixedDates,
-        // These are required by your model, so we add defaults
-        randomDates: widget.personToEdit?.randomDates ?? [],
         createdAt: widget.personToEdit?.createdAt ?? DateTime.now(),
+        nextRandomReminderDate: _nextRandomDate,
       );
 
       try {
         final collection = FirebaseFirestore.instance.collection('users').doc(widget.userId).collection('people');
 
         if (person.id == null) {
-          // Add new person
           await collection.add(person.toMap());
           if (!mounted) return;
           widget.showMessage('Person added successfully', Colors.green);
         } else {
-          // Update existing person
           await collection.doc(person.id).update(person.toMap());
           if (!mounted) return;
           widget.showMessage('Person updated successfully', Colors.green);
@@ -87,27 +98,48 @@ class _AddEditPersonScreenState extends State<AddEditPersonScreen> {
     }
   }
 
-  /// --- NEW: Shows a dialog to add or edit a FixedDate ---
-  /// This is the next piece of UI you'll need to build out.
-  void _showFixedDateDialog({FixedDate? existingDate, int? index}) {
-    // TODO: Build a dialog (AlertDialog) with fields for:
-    // 1. Dropdown for type ('birthday', 'anniversary', 'custom')
-    // 2. TextFormField for 'customName' (if type is 'custom')
-    // 3. DatePicker to select the 'date'
-    //
-    // On save, you'll get a new FixedDate object
-    // final newDate = FixedDate(type: ..., date: ...);
-    //
-    // setState(() {
-    //   if (index != null) {
-    //     _fixedDates[index] = newDate; // Update existing
-    //   } else {
-    //     _fixedDates.add(newDate); // Add new
-    //   }
-    // });
+  /// --- NEW: Helper function to call the dialog for ADDING ---
+  void _onAddEventPressed({required bool isRecurring}) async {
+    // We pass the isRecurring flag to the dialog
+    final FixedDate? newDate = await showDialog<FixedDate>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        // We'll need to update the dialog to accept this new param
+        return FixedDateDialog(
+          // dateToEdit: null, // Implicitly null
+          // isRecurringForNew: isRecurring, // We will add this
+        );
+      },
+    );
 
-    // For now, let's just show a placeholder:
-    widget.showMessage('TODO: Build Fixed Date dialog', Colors.blue);
+    // This part is a placeholder for our *next* step.
+    // For now, I'll just show the TODO
+    widget.showMessage('TODO: Update Dialog to accept isRecurring', Colors.blue);
+
+    // This is what the code WILL be:
+    // if (newDate != null) {
+    //   setState(() {
+    //     _fixedDates.add(newDate);
+    //   });
+    // }
+  }
+
+  /// --- UPDATED: Helper function to call the dialog for EDITING ---
+  void _onEditEventPressed(FixedDate dateToEdit, int index) async {
+    final FixedDate? editedDate = await showDialog<FixedDate>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        // This call is unchanged. The dialog will get its state
+        // from the dateToEdit object.
+        return FixedDateDialog(dateToEdit: dateToEdit);
+      },
+    );
+
+    if (editedDate != null) {
+      setState(() {
+        _fixedDates[index] = editedDate;
+      });
+    }
   }
 
   @override
@@ -133,28 +165,13 @@ class _AddEditPersonScreenState extends State<AddEditPersonScreen> {
               ),
               const SizedBox(height: 24),
 
-              // --- NEW: Type Selector ---
-              Text('Reminder Type', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              SegmentedButton<PersonType>(
-                segments: const [
-                  ButtonSegment(value: PersonType.random, label: Text('Random')),
-                  ButtonSegment(value: PersonType.fixed, label: Text('Fixed')),
-                ],
-                selected: {_personType},
-                onSelectionChanged: (Set<PersonType> newSelection) {
-                  setState(() {
-                    _personType = newSelection.first;
-                  });
-                },
-              ),
-              const SizedBox(height: 24),
+              // --- MOVED: Random Section is now always visible ---
+              _buildRandomSection(),
 
-              // --- NEW: Conditional UI ---
-              if (_personType == PersonType.random)
-                _buildRandomSection() // Show Random UI
-              else
-                _buildFixedSection(), // Show Fixed UI
+              const Divider(height: 32),
+
+              // --- UPDATED: Fixed Section ---
+              _buildFixedSection(),
 
               const SizedBox(height: 24),
               Center(
@@ -167,18 +184,18 @@ class _AddEditPersonScreenState extends State<AddEditPersonScreen> {
     );
   }
 
-  /// --- NEW: UI for Random Reminders ---
+  /// --- Random Reminders Section (Unchanged) ---
   Widget _buildRandomSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Reminders Per Year', style: Theme.of(context).textTheme.titleMedium),
+        Text('Random Reminders', style: Theme.of(context).textTheme.titleMedium),
         Text('Approx. ${_randomRemindersPerYear.toInt()} times per year', style: Theme.of(context).textTheme.bodySmall),
         Slider(
           value: _randomRemindersPerYear,
-          min: 1,
+          min: 0, // <-- Now starts at 0
           max: 12,
-          divisions: 11,
+          divisions: 12, // <-- Now 12 divisions
           label: _randomRemindersPerYear.toInt().toString(),
           onChanged: (double value) {
             setState(() {
@@ -190,47 +207,38 @@ class _AddEditPersonScreenState extends State<AddEditPersonScreen> {
     );
   }
 
-  /// --- NEW: UI for Fixed Reminders ---
+  /// --- UPDATED: Fixed Reminders Section ---
   Widget _buildFixedSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Fixed Events', style: Theme.of(context).textTheme.titleMedium),
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () {
-                _showFixedDateDialog(); // Call dialog to add new
-              },
-            ),
-          ],
-        ),
+        Text('Fixed Events', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         if (_fixedDates.isEmpty) const Center(child: Text('No fixed events added.')),
 
-        // List of existing fixed dates
+        // --- List of existing fixed dates ---
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: _fixedDates.length,
           itemBuilder: (context, index) {
             final date = _fixedDates[index];
-            final displayName = date.type == 'custom' ? date.customName ?? 'Event' : date.type.capitalize();
+            final displayName = date.type == FixedDateType.custom ? date.customName ?? 'Event' : date.type.displayName;
+
+            // --- NEW: Subtitle to show recurrence ---
+            final subTitleText = date.isRecurring ? 'Repeats Yearly' : 'One-Time Event';
+
             return Card(
               child: ListTile(
                 title: Text(displayName),
-                subtitle: Text(DateFormat.yMd().format(date.date)),
+                subtitle: Text('${DateFormat.yMd().format(date.date)} ($subTitleText)'),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
                       icon: const Icon(Icons.edit, size: 20),
-                      onPressed: () {
-                        // Call dialog to edit existing
-                        _showFixedDateDialog(existingDate: date, index: index);
-                      },
+                      // --- UPDATED Call ---
+                      onPressed: () => _onEditEventPressed(date, index),
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete, size: 20, color: Colors.red),
@@ -246,7 +254,95 @@ class _AddEditPersonScreenState extends State<AddEditPersonScreen> {
             );
           },
         ),
+
+        const SizedBox(height: 16),
+
+        // --- NEW: Two-button layout ---
+        Center(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center, // Makes buttons full-width
+            children: [
+              ElevatedButton.icon(
+                // Changed to ElevatedButton
+                icon: const Icon(Icons.cake),
+                label: const Text('Add Yearly Event'),
+                onPressed: () => _onAddEventPressed(isRecurring: true),
+              ),
+              const SizedBox(height: 8), // A little space
+              ElevatedButton.icon(
+                // Changed to ElevatedButton
+                icon: const Icon(Icons.calendar_today),
+                label: const Text('Add One-Time Event'),
+                onPressed: () => _onAddEventPressed(isRecurring: false),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
+}
+
+// -----------------------------------------------------------------
+// --- "SMART" CALCULATOR LOGIC (Unchanged) ---
+// -----------------------------------------------------------------
+DateTime _calculateNextRandomDate({required int remindersPerYear, required List<FixedDate> personFixedDates, DateTime? fromDate}) {
+  // ... (all the code from before is identical) ...
+  final now = fromDate ?? DateTime.now();
+  final random = Random();
+  final int avgDays = (365 / remindersPerYear).round();
+  final int flexibility = 14;
+  final int minDays = max(avgDays - flexibility, 7);
+  final int maxDays = avgDays + flexibility;
+  final blackoutDates = _getBlackoutDates(personFixedDates);
+  int attempts = 0;
+  while (attempts < 100) {
+    final int daysToAdd = minDays + random.nextInt(maxDays - minDays + 1);
+    final DateTime candidateDate = now.add(Duration(days: daysToAdd));
+    if (_isDateSafe(candidateDate, blackoutDates)) {
+      return candidateDate;
+    }
+    attempts++;
+  }
+  return now.add(Duration(days: minDays));
+}
+
+bool _isDateSafe(DateTime candidateDate, List<DateTime> blackoutDates) {
+  const int safetyWindow = 14;
+  for (final blackoutDate in blackoutDates) {
+    final int difference = candidateDate.difference(blackoutDate).inDays.abs();
+    if (difference <= safetyWindow) {
+      return false;
+    }
+  }
+  return true;
+}
+
+List<DateTime> _getBlackoutDates(List<FixedDate> personFixedDates) {
+  final now = DateTime.now();
+  final currentYear = now.year;
+  List<DateTime> dates = [];
+  for (final fixedDate in personFixedDates) {
+    DateTime dateThisYear = DateTime(currentYear, fixedDate.date.month, fixedDate.date.day);
+    if (dateThisYear.isBefore(now)) {
+      dates.add(DateTime(currentYear + 1, fixedDate.date.month, fixedDate.date.day));
+    } else {
+      dates.add(dateThisYear);
+    }
+  }
+  for (int year in [currentYear, currentYear + 1]) {
+    dates.add(DateTime(year, 1, 1)); // New Year's Day
+    dates.add(DateTime(year, 2, 14)); // Valentine's Day
+    dates.add(DateTime(year, 12, 25)); // Christmas
+    dates.add(_findThanksgiving(year));
+  }
+  return dates;
+}
+
+DateTime _findThanksgiving(int year) {
+  DateTime firstDayOfNov = DateTime(year, 11, 1);
+  int daysUntilFirstThursday = (4 - firstDayOfNov.weekday + 7) % 7;
+  DateTime firstThursday = firstDayOfNov.add(Duration(days: daysUntilFirstThursday));
+  DateTime fourthThursday = firstThursday.add(const Duration(days: 21));
+  return fourthThursday;
 }

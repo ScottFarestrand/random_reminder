@@ -18,9 +18,7 @@ void main() async {
   } catch (e) {
     // This catch block is for local testing without proper firebase_options.dart
     // In a real app, you'd handle this more robustly.
-    print(
-      "Firebase not initialized. Make sure 'firebase_options.dart' is set up correctly.",
-    );
+    print("Firebase not initialized. Make sure 'firebase_options.dart' is set up correctly.");
     print("Error: $e");
   }
 
@@ -44,11 +42,9 @@ class MyApp extends StatelessWidget {
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
-          if (snapshot.hasData) {
+          if (snapshot.hasData && snapshot.data!.emailVerified) {
             // User is signed in, show HomeScreen
             return HomeScreen(userId: snapshot.data!.uid);
           }

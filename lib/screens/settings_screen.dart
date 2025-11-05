@@ -1,99 +1,72 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:random_reminder/models/user_profile.dart'; // Import the model
+import 'package:random_reminder/models/user_profile.dart';
 import 'package:random_reminder/utilities/message_box.dart';
 
 class SettingsScreen extends StatefulWidget {
   final String userId;
-  final Function(String, MessageType) showMessage; // <-- ADD THIS
+  final Function(String, MessageType) showMessage;
 
-  const SettingsScreen({
-    super.key,
-    required this.userId,
-    required this.showMessage, // <-- ADD THIS
-  });
+  const SettingsScreen({super.key, required this.userId, required this.showMessage});
 
   @override
   _SettingsScreenState createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  // Firebase instances
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
-  // Controllers to manage the text fields
-  late TextEditingController _emailController;
   late TextEditingController _phoneController;
 
-  // This future will hold our user profile data
   late Future<UserProfile> _userProfileFuture;
-
-  // This will hold the loaded profile
   UserProfile? _userProfile;
+
+  // --- NEW: We get the user's email directly ---
+  final String? _currentUserEmail = FirebaseAuth.instance.currentUser?.email;
 
   @override
   void initState() {
     super.initState();
-    _emailController = TextEditingController();
     _phoneController = TextEditingController();
-
-    // Start fetching the user profile as soon as the widget is created
     _userProfileFuture = _fetchUserProfile();
   }
 
   @override
   void dispose() {
-    // Clean up controllers
-    _emailController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
 
-  /// Fetches the UserProfile from Firestore.
+  /// --- SIMPLIFIED: No more email logic ---
   Future<UserProfile> _fetchUserProfile() async {
-    final user = _auth.currentUser;
-    if (user == null) {
-      // This shouldn't happen if they are on this screen, but good to check
-      throw Exception("No authenticated user found.");
-    }
-
-    final docRef = _firestore.collection('users').doc(user.uid);
+    final docRef = _firestore.collection('users').doc(widget.userId);
     final docSnap = await docRef.get();
 
     UserProfile profile;
     if (docSnap.exists) {
-      // User has a profile, load it
-      profile = UserProfile.fromMap(user.uid, docSnap.data());
+      profile = UserProfile.fromMap(widget.userId, docSnap.data());
     } else {
-      // First time user, create a default profile for them
-      profile = UserProfile.empty(user.uid);
-      // We MUST save this back to Firestore to create the document
-      await docRef.set(profile.toMap()); // <-- THIS IS THE FIX
+      // If they don't have a profile, create one
+      profile = UserProfile.empty(widget.userId);
+      // We no longer add email here, just create the doc
+      await docRef.set(profile.toMap());
     }
 
-    // Set controller text and store the profile
-    _emailController.text = profile.email ?? '';
     _phoneController.text = profile.phone ?? '';
-    _userProfile = profile; // Store for later use in verify buttons
+    _userProfile = profile;
 
     return profile;
   }
 
-  /// Saves the current text in the controllers to Firestore
+  /// Saves only phone data
   Future<void> _saveProfile() async {
-    if (_userProfile == null) return; // Not loaded yet
+    if (_userProfile == null) return;
 
-    final newEmail = _emailController.text.trim();
     final newPhone = _phoneController.text.trim();
-
-    // Only update if text actually changed
     final Map<String, dynamic> updates = {};
-    if (newEmail != (_userProfile!.email ?? '')) {
-      updates['email'] = newEmail;
-      updates['isEmailVerified'] = false; // Require re-verification
-    }
+
     if (newPhone != (_userProfile!.phone ?? '')) {
       updates['phone'] = newPhone;
       updates['isPhoneVerified'] = false; // Require re-verification
@@ -104,50 +77,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final docRef = _firestore.collection('users').doc(_userProfile!.uid);
         await docRef.set(updates, SetOptions(merge: true));
 
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile saved!'), backgroundColor: Colors.green));
-        // Refresh the profile data
+        if (!mounted) return;
+        widget.showMessage('Profile saved!', MessageType.success);
+
         setState(() {
           _userProfileFuture = _fetchUserProfile();
         });
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error saving profile: $e'), backgroundColor: Colors.red));
+        if (!mounted) return;
+        widget.showMessage('Error saving profile: $e', MessageType.error);
       }
     }
-  }
-
-  /// TODO: Implement Email Verification Logic
-  void _onVerifyEmailPressed() {
-    if (_userProfile == null) return;
-    _saveProfile(); // Save any changes first
-
-    if (_userProfile!.isEmailVerified) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email is already verified.')));
-      return;
-    }
-
-    // 1. Get the current user
-    // 2. Call user.sendEmailVerification()
-    // 3. Show a snackbar telling them to check their email
-    print('TODO: Send email verification');
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('TODO: Send email verification')));
   }
 
   /// TODO: Implement Phone Verification Logic
   void _onVerifyPhonePressed() {
     if (_userProfile == null) return;
-    _saveProfile(); // Save any changes first
+    _saveProfile();
 
     if (_userProfile!.isPhoneVerified) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Phone is already verified.')));
+      widget.showMessage('Phone is already verified.', MessageType.info);
       return;
     }
 
-    // This is the complex part
-    // 1. Call your Twilio/Firebase Phone Auth function
-    // 2. This will likely open a new dialog/screen to enter the 6-digit code
-    // 3. On success, update 'isPhoneVerified' to true in Firestore
     print('TODO: Start phone verification');
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('TODO: Start phone verification')));
+    widget.showMessage('TODO: Start phone verification', MessageType.info);
   }
 
   @override
@@ -157,25 +111,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: FutureBuilder<UserProfile>(
         future: _userProfileFuture,
         builder: (context, snapshot) {
-          // --- 1. Handle Loading State ---
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
-          // --- 2. Handle Error State ---
           if (snapshot.hasError) {
             return Center(
               child: Text('Error loading profile: ${snapshot.error}', style: const TextStyle(color: Colors.red)),
             );
           }
-
-          // --- 3. Handle Success State ---
-          if (!snapshot.hasData) {
-            return const Center(child: Text('User profile not found.'));
-          }
-
-          // We have the data!
-          final userProfile = snapshot.data!;
+          // Note: snapshot.data is our UserProfile, which NO LONGER has email
+          // final userProfile = snapshot.data!;
+          // We can use _userProfile, which is set in the future
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -187,32 +133,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const Text('Manage the email and phone number used for reminders.', style: TextStyle(fontSize: 16)),
                 const Divider(height: 32),
 
-                // --- Email Field ---
+                // --- UPDATED: Email Field (Read-Only) ---
                 Text('Email Address', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(hintText: 'user@example.com', border: OutlineInputBorder()),
-                  keyboardType: TextInputType.emailAddress,
-                ),
+                // --- THE FIX: Display email from Auth ---
+                Text(_currentUserEmail ?? 'No email found', style: const TextStyle(fontSize: 16, color: Colors.blueGrey)),
                 const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: _onVerifyEmailPressed,
-                    icon: Icon(userProfile.isEmailVerified ? Icons.check_circle : Icons.warning, color: userProfile.isEmailVerified ? Colors.green : Colors.orange),
-                    label: Text(userProfile.isEmailVerified ? 'Verified' : 'Verify Email'),
-                  ),
+                Row(
+                  children: const [
+                    Icon(Icons.check_circle, color: Colors.green, size: 16),
+                    SizedBox(width: 8),
+                    Text('Verified'),
+                  ],
                 ),
                 const SizedBox(height: 24),
 
-                // --- Phone Field ---
+                // --- UNCHANGED: Phone Field ---
                 Text('Phone Number', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _phoneController,
                   decoration: const InputDecoration(hintText: '+15551234567', border: OutlineInputBorder()),
-
                   keyboardType: TextInputType.phone,
                 ),
                 const SizedBox(height: 8),
@@ -220,8 +161,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton.icon(
                     onPressed: _onVerifyPhonePressed,
-                    icon: Icon(userProfile.isPhoneVerified ? Icons.check_circle : Icons.warning, color: userProfile.isPhoneVerified ? Colors.green : Colors.orange),
-                    label: Text(userProfile.isPhoneVerified ? 'Verified' : 'Verify Phone'),
+                    icon: Icon(
+                      _userProfile?.isPhoneVerified == true ? Icons.check_circle : Icons.warning,
+                      color: _userProfile?.isPhoneVerified == true ? Colors.green : Colors.orange,
+                    ),
+                    label: Text(_userProfile?.isPhoneVerified == true ? 'Verified' : 'Verify Phone'),
                   ),
                 ),
 

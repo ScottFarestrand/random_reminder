@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:random_reminder/utilities/message_box.dart';
+import 'home_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -23,37 +24,44 @@ class _AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
+  // @override
+  // void init() {
+  //   _emailController.text = 'scotfarestrand@gmail.com';
+  //   _passwordController.text = 'LeeAnn96';
+  // }
+
   /// Handles user registration with email and password.
   Future<void> _register() async {
     setState(() {
       _isLoading = true;
     });
     try {
-      await _auth.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-      showMessageBox(
+      final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(email: _emailController.text.trim(), password: _passwordController.text.trim());
+
+      // -----------------------------------------------------------------
+      // STEP 2: THIS IS THE NEW LINE!
+      // -----------------------------------------------------------------
+      // We found a user? Great. Send the email.
+      // We don't 'await' this. We just fire and forget.
+      userCredential.user?.sendEmailVerification();
+      // -----------------------------------------------------------------
+
+      // STEP 3: Tell the user what to do
+      // (You'll need a 'context' to be available in this function)
+      ScaffoldMessenger.of(
         context,
-        "Registration successful! You are now logged in.",
-        MessageType.success,
-      );
-    } on FirebaseAuthException catch (e) {
-      String message = 'Registration failed. Please try again.';
-      if (e.code == 'weak-password') {
-        message = 'The password provided is too weak.';
-      } else if (e.code == 'email-already-in-use') {
-        message = 'An account already exists for that email.';
-      } else if (e.code == 'invalid-email') {
-        message = 'The email address is not valid.';
-      }
-      showMessageBox(context, message, MessageType.error);
+      ).showSnackBar(const SnackBar(content: Text('Success! A verification email has been sent. Please check your inbox.'), backgroundColor: Colors.green));
+
+      // STEP 4: Send them back to the login screen
+      // This is the key. We log them out, forcing them to log in *after*
+      // they click the link in their email.
+      // (If you are in a separate screen, you might just pop())
+      await FirebaseAuth.instance.signOut();
+
+      // (If you're using a single screen for login/register, just
+      // switch the view back to "login")
     } catch (e) {
-      showMessageBox(
-        context,
-        "An unexpected error occurred: $e",
-        MessageType.error,
-      );
+      showMessageBox(context, "An unexpected error occurred: $e", MessageType.error);
     } finally {
       setState(() {
         _isLoading = false;
@@ -67,27 +75,43 @@ class _AuthScreenState extends State<AuthScreen> {
       _isLoading = true;
     });
     try {
-      await _auth.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-      showMessageBox(context, "Login successful!", MessageType.success);
-    } on FirebaseAuthException catch (e) {
-      String message = 'Login failed. Please check your credentials.';
-      if (e.code == 'user-not-found' || e.code == 'wrong-password') {
-        message = 'Invalid email or password.';
-      } else if (e.code == 'invalid-email') {
-        message = 'The email address is not valid.';
-      } else if (e.code == 'user-disabled') {
-        message = 'This user account has been disabled.';
+      // STEP 1: Try to sign in
+      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(email: _emailController.text.trim(), password: _passwordController.text.trim());
+
+      // STEP 2: We have a user! NOW, check if they're verified.
+      if (userCredential.user != null) {
+        if (userCredential.user!.emailVerified) {
+          // --- THE "HAPPY PATH" ---
+          // They are verified! Let them in.
+          // (Hide loading spinner)
+          Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => HomeScreen(userId: userCredential.user!.uid)));
+        } else {
+          // --- THE "BOUNCER" PATH ---
+          // They exist, but they're not verified.
+          // 1. Send another email, just in case.
+          await userCredential.user!.sendEmailVerification();
+
+          // 2. Sign them out immediately.
+          await FirebaseAuth.instance.signOut();
+
+          // 3. Show the "check your email" message.
+          // (Hide loading spinner)
+          if (mounted) {
+            // Good practice: check if widget is still on screen
+            showMessageBox(
+              context,
+              'Your email is not verified. We just sent another verification link. Please check your email (including Spam Folder)',
+              MessageType.warning, // Or .error, your call
+            );
+          }
+        }
       }
-      showMessageBox(context, message, MessageType.error);
-    } catch (e) {
-      showMessageBox(
-        context,
-        "An unexpected error occurred: $e",
-        MessageType.error,
-      );
+    } on FirebaseAuthException catch (e) {
+      // Handle "wrong-password", "user-not-found", etc.
+      // (Hide loading spinner)
+      if (mounted) {
+        showMessageBox(context, 'Login failed: ${e.message}', MessageType.error);
+      }
     } finally {
       setState(() {
         _isLoading = false;
@@ -97,19 +121,14 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _emailController.text = 'scottfarestrand@gmail.com';
+    _passwordController.text = 'LeeAnn96';
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_isLoginMode ? 'Login' : 'Register'),
-        backgroundColor: Colors.blue[600],
-        foregroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: Text(_isLoginMode ? 'Login' : 'Register'), backgroundColor: Colors.blue[600], foregroundColor: Colors.white),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Color(0xFFE3F2FD),
-              Color(0xFFE1BEE7),
-            ], // from-blue-100 to-purple-100
+            colors: [Color(0xFFE3F2FD), Color(0xFFE1BEE7)], // from-blue-100 to-purple-100
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -119,9 +138,7 @@ class _AuthScreenState extends State<AuthScreen> {
             padding: const EdgeInsets.all(24.0),
             child: Card(
               elevation: 8.0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15.0),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
@@ -129,11 +146,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   children: [
                     Text(
                       _isLoginMode ? 'Welcome Back!' : 'Create Your Account',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 30),
@@ -144,9 +157,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         labelText: 'Email',
                         hintText: 'your@example.com',
                         prefixIcon: const Icon(Icons.email),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                         filled: true,
                         fillColor: Colors.grey[100],
                       ),
@@ -159,9 +170,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         labelText: 'Password',
                         hintText: '••••••••',
                         prefixIcon: const Icon(Icons.lock),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                         filled: true,
                         fillColor: Colors.grey[100],
                       ),
@@ -176,17 +185,10 @@ class _AuthScreenState extends State<AuthScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue[600],
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 15,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 15),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 elevation: 5,
-                                textStyle: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                               ),
                               child: Text(_isLoginMode ? 'Login' : 'Register'),
                             ),
@@ -200,12 +202,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           _passwordController.clear();
                         });
                       },
-                      child: Text(
-                        _isLoginMode
-                            ? 'Don\'t have an account? Register here.'
-                            : 'Already have an account? Login here.',
-                        style: TextStyle(color: Colors.blue[800]),
-                      ),
+                      child: Text(_isLoginMode ? 'Don\'t have an account? Register here.' : 'Already have an account? Login here.', style: TextStyle(color: Colors.blue[800])),
                     ),
                   ],
                 ),

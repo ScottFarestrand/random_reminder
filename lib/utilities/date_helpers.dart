@@ -98,13 +98,13 @@ class DateHelpers {
 
     for (var person in people) {
       final String personName = person.name;
-      final String personType = person.type;
+      final String personType = 'fixed';
       final int currentYear = today.year;
 
       // Handle Fixed Date reminders
       for (var fixedEvent in person.fixedDates) {
         final DateTime eventDate = fixedEvent.date;
-        final String eventType = fixedEvent.type;
+        String eventType = person.fixedDates.first.type.displayName;
         final String? eventCustomName = fixedEvent.customName;
 
         final List<DateTime> datesToConsider = [];
@@ -143,36 +143,21 @@ class DateHelpers {
       }
 
       // Handle Random Date reminders
-      if (person.randomDates.isNotEmpty) {
-        for (var rd in person.randomDates) {
-          final DateTime randomDate = rd;
-          // Consider this year's random date
-          final DateTime thisYearRandomDate = normalizeDate(DateTime(currentYear, randomDate.month, randomDate.day));
-
-          // Only consider if the random date is today or in the future
-          if (!thisYearRandomDate.isBefore(normalizedToday)) {
-            const List<int> reminderOffsets = [0, 1, 5, 10]; // Days before
-            for (var offset in reminderOffsets) {
-              final DateTime reminderDate = thisYearRandomDate.subtract(Duration(days: offset));
-              final DateTime normalizedReminderDate = normalizeDate(reminderDate);
-
-              // Only add if the reminder date is today or in the future
-              if (!normalizedReminderDate.isBefore(normalizedToday)) {
-                reminders.add(
-                  Reminder(
-                    personName: personName,
-                    personType: personType,
-                    originalDate: thisYearRandomDate,
-                    reminderDate: normalizedReminderDate,
-                    eventType: 'random_reminder',
-                    eventCustomName: null,
-                    offset: offset == 0 ? 'On Day' : '$offset Days Before',
-                  ),
-                );
-              }
-            }
-          }
-        }
+      if (person.randomRemindersPerYear > 0 && person.nextRandomReminderDate != null) {
+        // This person has one pending random reminder. Add it to the list.
+        reminders.add(
+          Reminder(
+            personName: person.name,
+            personType: 'random',
+            eventType: 'random',
+            eventCustomName: 'Random Reminder',
+            // We know the date isn't null because of the check above
+            originalDate: person.nextRandomReminderDate!,
+            // For a random reminder, the reminder date *is* the original date
+            reminderDate: person.nextRandomReminderDate!,
+            offset: 'On Day', // Random reminders are only for "On Day"
+          ),
+        );
       }
     }
 

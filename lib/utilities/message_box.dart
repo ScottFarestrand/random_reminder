@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum MessageType { info, success, error }
+enum MessageType { info, success, error, warning }
 
 // Function to show custom messages using SnackBar
 void showMessageBox(BuildContext context, String text, MessageType type) {

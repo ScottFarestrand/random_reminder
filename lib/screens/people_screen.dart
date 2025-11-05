@@ -5,6 +5,7 @@ import 'package:random_reminder/services/firestore_service.dart';
 import 'package:random_reminder/utilities/message_box.dart';
 import 'package:random_reminder/utilities/date_helpers.dart';
 import 'package:random_reminder/screens/add_edit_person.dart'; // NEW: Import AddEditPersonScreen
+import 'package:random_reminder/utilities/fixed_date.dart';
 
 class PeopleListScreen extends StatefulWidget {
   final String userId;
@@ -55,8 +56,10 @@ class _PeopleListScreenState extends State<PeopleListScreen> {
     });
     try {
       await _firestoreService.deletePerson(widget.userId, personId);
+      if (!mounted) return;
       showMessageBox(context, 'Person deleted successfully!', MessageType.success);
     } catch (e) {
+      if (!mounted) return;
       showMessageBox(context, 'Failed to delete person: ${e.toString()}', MessageType.error);
     } finally {
       setState(() {
@@ -141,7 +144,7 @@ class _PeopleListScreenState extends State<PeopleListScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('${person.name} (${(person.type).capitalize()})', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                    Text(person.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                     Text('Random Reminders: ${person.randomRemindersPerYear}', style: const TextStyle(fontSize: 13, color: Colors.grey)),
                                     if (person.fixedDates.isNotEmpty) ...[
                                       const SizedBox(height: 8),
@@ -150,7 +153,7 @@ class _PeopleListScreenState extends State<PeopleListScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: person.fixedDates.map((fd) {
                                           return Text(
-                                            '• ${fd.type == 'custom' ? fd.customName : (fd.type).capitalize()}: ${DateFormat.yMd().format(fd.date)}',
+                                            '• ${fd.type == 'custom' ? fd.customName : fd.type.displayName}: ${DateFormat.yMd().format(fd.date)}',
                                             style: const TextStyle(fontSize: 12, color: Colors.grey),
                                           );
                                         }).toList(),
