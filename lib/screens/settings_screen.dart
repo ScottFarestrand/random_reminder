@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// --- NEW IMPORT ---
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:cloud_functions/cloud_functions.dart'; // <-- Required import
 import 'package:random_reminder/models/user_profile.dart';
 import 'package:random_reminder/utilities/message_box.dart';
 
@@ -19,8 +18,6 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
-
-  // --- NEW: Firebase Functions instance ---
   // We force the region to 'us-central1' to prevent auth issues
   final _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
 
@@ -30,8 +27,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   UserProfile? _userProfile;
   final String? _currentUserEmail = FirebaseAuth.instance.currentUser?.email;
 
-  // --- NEW: Loading state for verification button ---
   bool _isVerifying = false;
+  // Loading state for our new test button
+  bool _isTestingSms = false;
 
   @override
   void initState() {
@@ -46,7 +44,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
-  // (This function is unchanged)
+  /// Fetches the UserProfile from Firestore.
   Future<UserProfile> _fetchUserProfile() async {
     final docRef = _firestore.collection('users').doc(widget.userId);
     final docSnap = await docRef.get();
@@ -62,7 +60,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return profile;
   }
 
-  // (This function is unchanged)
+  /// Saves only phone data
   Future<void> _saveProfile() async {
     if (_userProfile == null) return;
     final newPhone = _phoneController.text.trim();
@@ -87,18 +85,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  /// --- NEW: Function to show the code-entry dialog ---
+  /// Function to show the code-entry dialog
   Future<void> _showOtpDialog(String phoneNumber) async {
     final codeController = TextEditingController();
-
-    // Grab context *before* the async gap (the 'await showDialog')
     final BuildContext dialogContext = context;
 
     await showDialog(
       context: dialogContext,
-      barrierDismissible: false, // Don't allow closing by tapping outside
+      barrierDismissible: false,
       builder: (context) {
-        // Use a stateful builder so the dialog can show its own loading spinner
         bool isCheckingCode = false;
         return StatefulBuilder(
           builder: (context, setDialogState) {
@@ -113,7 +108,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               actions: [
                 TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
                 ElevatedButton(
-                  // Show loading spinner on button when checking
                   onPressed: isCheckingCode
                       ? null
                       : () async {
@@ -121,28 +115,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             isCheckingCode = true;
                           });
                           try {
-                            // Call our 2nd cloud function
                             final callable = _functions.httpsCallable('checkVerificationCode');
                             final result = await callable.call<Map<String, dynamic>>({'phoneNumber': phoneNumber, 'code': codeController.text});
-
-                            if (!mounted) return; // Check mounted *after* await
-
+                            if (!mounted) return;
                             if (result.data['success'] == true) {
-                              Navigator.of(context).pop(); // Close dialog
+                              Navigator.of(context).pop();
                               widget.showMessage('Phone verified!', MessageType.success);
-                              // Refresh the screen
                               setState(() {
                                 _userProfileFuture = _fetchUserProfile();
                               });
                             } else {
-                              // Code was wrong
                               widget.showMessage('Invalid code. Please try again.', MessageType.error);
                             }
                           } on FirebaseFunctionsException catch (e) {
                             if (!mounted) return;
                             widget.showMessage('Error: ${e.message}', MessageType.error);
                           } finally {
-                            // Only update dialog state if it's still mounted
                             if (Navigator.of(context).canPop()) {
                               setDialogState(() {
                                 isCheckingCode = false;
@@ -160,59 +148,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// --- UPDATED: Phone Verification Logic (replaces the TODO) ---
+  /// Phone Verification Logic
   void _onVerifyPhonePressed() async {
-    // 0. Check if already verified
     if (_userProfile?.isPhoneVerified == true) {
       widget.showMessage('Phone is already verified.', MessageType.info);
       return;
     }
-
-    // 1. Save any changes first
     await _saveProfile();
-
-    // 2. Get the number from the controller
     final phoneNumber = _phoneController.text.trim();
     if (phoneNumber.isEmpty) {
       widget.showMessage('Please enter a phone number.', MessageType.error);
       return;
     }
-    // Simple validation (Twilio requires E.164 format)
     if (!phoneNumber.startsWith('+')) {
       widget.showMessage('Please use E.164 format (e.g., +15551234567).', MessageType.error);
       return;
     }
-
-    if (mounted) {
+    if (mounted)
       setState(() {
         _isVerifying = true;
       });
-    }
-
     try {
-      // 3. Call our 1st cloud function
       final callable = _functions.httpsCallable('sendVerificationCode');
       await callable.call<Map<String, dynamic>>({'phoneNumber': phoneNumber});
-
-      // 4. If successful, show the dialog to enter the code
       if (!mounted) return;
       widget.showMessage('Verification code sent!', MessageType.info);
-      // Wait for the dialog to close
       await _showOtpDialog(phoneNumber);
     } on FirebaseFunctionsException catch (e) {
       if (!mounted) return;
-      // This will show the user the "INTERNAL" error, which is fine
       widget.showMessage('Error: ${e.message}', MessageType.error);
     } finally {
-      if (mounted) {
+      if (mounted)
         setState(() {
           _isVerifying = false;
         });
-      }
     }
   }
 
-  /// --- UPDATED: The Build Method ---
+  /// --- NEW: Function to call our testSms cloud function ---
+  void _onTestSmsPressed() async {
+    if (_userProfile?.isPhoneVerified != true) {
+      widget.showMessage('You must verify your phone number before sending a test.', MessageType.error);
+      return;
+    }
+    if (mounted)
+      setState(() {
+        _isTestingSms = true;
+      });
+    try {
+      final callable = _functions.httpsCallable('testSms');
+      final result = await callable.call(); // No parameters needed
+      if (!mounted) return;
+      widget.showMessage(result.data['message'] ?? 'Test SMS sent!', MessageType.success);
+    } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
+      widget.showMessage('Error: ${e.message}', MessageType.error);
+    } finally {
+      if (mounted)
+        setState(() {
+          _isTestingSms = false;
+        });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -237,7 +235,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const Text('Manage the email and phone number used for reminders.', style: TextStyle(fontSize: 16)),
                 const Divider(height: 32),
 
-                // --- Email Address section (Unchanged) ---
+                // --- Email Address section ---
                 Text('Email Address', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
                 Text(_currentUserEmail ?? 'No email found', style: const TextStyle(fontSize: 16, color: Colors.blueGrey)),
@@ -251,7 +249,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // --- Phone Field (Unchanged) ---
+                // --- Phone Number section ---
                 Text('Phone Number', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -262,7 +260,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerRight,
-                  // --- UPDATED: Show loading indicator ---
                   child: _isVerifying
                       ? const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator())
                       : TextButton.icon(
@@ -275,14 +272,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                 ),
 
-                // --- Save Button (Unchanged) ---
                 const SizedBox(height: 40),
+
+                // --- NEW: Test Button Section ---
                 Center(
-                  child: ElevatedButton(
-                    onPressed: _saveProfile,
-                    child: const Text('Save Changes'),
-                    style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15), textStyle: const TextStyle(fontSize: 16)),
-                  ),
+                  child: _isTestingSms
+                      ? const CircularProgressIndicator()
+                      : ElevatedButton.icon(
+                          icon: const Icon(Icons.sms),
+                          label: const Text('Send Test SMS'),
+                          onPressed: _userProfile?.isPhoneVerified == true ? _onTestSmsPressed : null,
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+                        ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // --- Save Changes Button ---
+                Center(
+                  child: ElevatedButton(onPressed: _saveProfile, child: const Text('Save Changes')),
                 ),
               ],
             ),

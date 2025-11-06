@@ -1,39 +1,51 @@
-const functions = require("firebase-functions");
-const admin = require("firebase-admin");
+const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {initializeApp} = require("firebase-admin/app");
+const {getFirestore} = require("firebase-admin/firestore");
 const twilio = require("twilio");
 
-admin.initializeApp();
+// Initialize Firebase
+initializeApp();
 
-// --- NOTE: ALL GLOBAL VARIABLES ARE GONE ---
-// We will load them "just-in-time" inside the functions.
+// --- Load keys (This part is correct) ---
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+
+// --- Initialize Twilio Client (but check for keys first) ---
+let twilioClient;
+if (!accountSid) {
+  console.error('Account SID missing');
+}
+if (!authToken) {
+  console.error('Auth Token missing');
+}
+if (accountSid && authToken) {
+  twilioClient = twilio(accountSid, authToken);
+} else {
+  console.error("Twilio Account SID or Auth Token is missing from .env!");
+}
 
 /**
- * [Callable Function]
- * Takes a phone number and sends a 6-digit verification code via SMS.
+ * [V2 Callable Function]
+ * Sends a 6-digit verification code via SMS.
  */
-exports.sendVerificationCode = functions.https.onCall(async (data, context) => {
-  // --- LOAD KEYS *INSIDE* THE FUNCTION ---
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
-
-  if (!accountSid || !authToken || !serviceSid) {
-    console.error("Twilio config is missing. Check .env file and deployment.");
-    throw new functions.https.HttpsError("internal", "Twilio config is missing.");
-  }
-  const twilioClient = twilio(accountSid, authToken);
-  // --- END NEW LOGIC ---
-
-  if (!context.auth) {
-    throw new functions.https.HttpsError(
+exports.sendVerificationCode = onCall(async (request) => {
+  // 1. Check for auth (Note: it's request.auth, not context.auth)
+  if (!request.auth) {
+    throw new HttpsError(
         "unauthenticated",
         "You must be logged in to verify your phone.",
     );
   }
 
-  const phoneNumber = data.phoneNumber;
+  // 2. Check Twilio Client
+  if (!twilioClient || !serviceSid) {
+    throw new HttpsError("internal", "Twilio config is missing on server.");
+  }
+  
+  const phoneNumber = request.data.phoneNumber;
   if (!phoneNumber) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
         "invalid-argument",
         "The function must be called with a 'phoneNumber' argument.",
     );
@@ -48,43 +60,34 @@ exports.sendVerificationCode = functions.https.onCall(async (data, context) => {
     return {success: true, status: verification.status};
   } catch (error) {
     console.error(`Failed to send verification to ${phoneNumber}`, error);
-    throw new functions.https.HttpsError(
-        "internal",
-        `Twilio Error: ${error.message}`,
-    );
+    throw new HttpsError("internal", `Twilio Error: ${error.message}`);
   }
 });
 
 /**
- * [Callable Function]
+ * [V2 Callable Function]
  * Takes a phone number and a 6-digit code to check if it's valid.
  */
-exports.checkVerificationCode = functions.https.onCall(async (data, context) => {
-  // --- LOAD KEYS *INSIDE* THE FUNCTION ---
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
-
-  if (!accountSid || !authToken || !serviceSid) {
-    console.error("Twilio config is missing. Check .env file and deployment.");
-    throw new functions.https.HttpsError("internal", "Twilio config is missing.");
-  }
-  const twilioClient = twilio(accountSid, authToken);
-  // --- END NEW LOGIC ---
-
-  if (!context.auth) {
-    throw new functions.https.HttpsError(
+exports.checkVerificationCode = onCall(async (request) => {
+  // 1. Check for auth
+  if (!request.auth) {
+    throw new HttpsError(
         "unauthenticated",
         "You must be logged in to verify your phone.",
     );
   }
 
-  const phoneNumber = data.phoneNumber;
-  const verificationCode = data.code;
-  const userId = context.auth.uid;
+  // 2. Check Twilio Client
+  if (!twilioClient || !serviceSid) {
+    throw new HttpsError("internal", "Twilio config is missing on server.");
+  }
+
+  const phoneNumber = request.data.phoneNumber;
+  const verificationCode = request.data.code;
+  const userId = request.auth.uid; // Get the user's ID
 
   if (!phoneNumber || !verificationCode) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
         "invalid-argument",
         "Missing 'phoneNumber' or 'code' arguments.",
     );
@@ -97,7 +100,8 @@ exports.checkVerificationCode = functions.https.onCall(async (data, context) => 
 
     if (verificationCheck.status === "approved") {
       console.log(`Code approved for ${phoneNumber}. Updating Firestore.`);
-      const userDocRef = admin.firestore().collection("users").doc(userId);
+      // Note: We get firestore with getFirestore() in V2
+      const userDocRef = getFirestore().collection("users").doc(userId);
       
       await userDocRef.update({
         phone: phoneNumber,
@@ -113,9 +117,67 @@ exports.checkVerificationCode = functions.https.onCall(async (data, context) => 
     }
   } catch (error) {
     console.error(`Failed to check verification for ${phoneNumber}`, error);
-    throw new functions.https.HttpsError(
+    throw new HttpsError("internal", `Twilio Error: ${error.message}`);
+  }
+});
+
+/**
+ * [V2 Callable Function]
+ * Sends a hardcoded test SMS to the logged-in user's verified phone number.
+ */
+exports.testSms = onCall(async (request) => {
+  // 1. Check for auth
+  if (!request.auth) {
+    throw new HttpsError(
+        "unauthenticated",
+        "You must be logged in to test SMS.",
+    );
+  }
+
+  // 2. Check Twilio Client
+  if (!twilioClient || !serviceSid) {
+    throw new HttpsError("internal", "Twilio config is missing on server.");
+  }
+  
+  const userId = request.auth.uid;
+
+  try {
+    const userDocRef = getFirestore().collection("users").doc(userId);
+    const userDoc = await userDocRef.get();
+
+    if (!userDoc.exists) {
+      throw new HttpsError("not-found", "User profile not found.");
+    }
+
+    const userData = userDoc.data();
+    const phoneNumber = userData.phone;
+    const isVerified = userData.isPhoneVerified;
+
+    if (!isVerified || !phoneNumber) {
+      throw new HttpsError(
+          "failed-precondition",
+          "Your phone number is not verified. Please verify it first.",
+      );
+    }
+
+    // 4. Send the Test SMS
+    
+    await twilioClient.messages.create({
+      body: "This is a test message from your Random Reminder app!",
+      from: "+18776575691", // IMPORTANT: Remember to use your Twilio #
+      to: phoneNumber,
+    });
+
+    console.log(`Test SMS sent successfully to ${phoneNumber}`);
+    return {success: true, message: "Test SMS sent!"};
+  } catch (error) {
+    console.error(`Failed to send test SMS to user ${userId}`, error);
+    if (error instanceof HttpsError) {
+      throw error; // Re-throw our own errors
+    }
+    throw new HttpsError(
         "internal",
-        `Twilio Error: ${error.message}`,
+        `Failed to send test SMS: ${error.message}`,
     );
   }
 });
