@@ -21,7 +21,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _firestore = FirebaseFirestore.instance;
 
   // --- NEW: Firebase Functions instance ---
-  // final _functions = FirebaseFunctions.instance;
+  // We force the region to 'us-central1' to prevent auth issues
   final _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
 
   late TextEditingController _phoneController;
@@ -201,6 +201,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await _showOtpDialog(phoneNumber);
     } on FirebaseFunctionsException catch (e) {
       if (!mounted) return;
+      // This will show the user the "INTERNAL" error, which is fine
       widget.showMessage('Error: ${e.message}', MessageType.error);
     } finally {
       if (mounted) {
@@ -211,7 +212,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  /// --- UPDSATED: The Build Method ---
+  /// --- UPDATED: The Build Method ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
