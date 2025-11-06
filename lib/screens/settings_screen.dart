@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+// --- NEW IMPORT ---
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:random_reminder/models/user_profile.dart';
 import 'package:random_reminder/utilities/message_box.dart';
 
@@ -18,13 +20,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
+  // --- NEW: Firebase Functions instance ---
+  // final _functions = FirebaseFunctions.instance;
+  final _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
+
   late TextEditingController _phoneController;
 
   late Future<UserProfile> _userProfileFuture;
   UserProfile? _userProfile;
-
-  // --- NEW: We get the user's email directly ---
   final String? _currentUserEmail = FirebaseAuth.instance.currentUser?.email;
+
+  // --- NEW: Loading state for verification button ---
+  bool _isVerifying = false;
 
   @override
   void initState() {
@@ -39,47 +46,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
-  /// --- SIMPLIFIED: No more email logic ---
+  // (This function is unchanged)
   Future<UserProfile> _fetchUserProfile() async {
     final docRef = _firestore.collection('users').doc(widget.userId);
     final docSnap = await docRef.get();
-
     UserProfile profile;
     if (docSnap.exists) {
       profile = UserProfile.fromMap(widget.userId, docSnap.data());
     } else {
-      // If they don't have a profile, create one
       profile = UserProfile.empty(widget.userId);
-      // We no longer add email here, just create the doc
       await docRef.set(profile.toMap());
     }
-
     _phoneController.text = profile.phone ?? '';
     _userProfile = profile;
-
     return profile;
   }
 
-  /// Saves only phone data
+  // (This function is unchanged)
   Future<void> _saveProfile() async {
     if (_userProfile == null) return;
-
     final newPhone = _phoneController.text.trim();
     final Map<String, dynamic> updates = {};
-
     if (newPhone != (_userProfile!.phone ?? '')) {
       updates['phone'] = newPhone;
-      updates['isPhoneVerified'] = false; // Require re-verification
+      updates['isPhoneVerified'] = false;
     }
-
     if (updates.isNotEmpty) {
       try {
         final docRef = _firestore.collection('users').doc(_userProfile!.uid);
         await docRef.set(updates, SetOptions(merge: true));
-
         if (!mounted) return;
         widget.showMessage('Profile saved!', MessageType.success);
-
         setState(() {
           _userProfileFuture = _fetchUserProfile();
         });
@@ -90,20 +87,131 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  /// TODO: Implement Phone Verification Logic
-  void _onVerifyPhonePressed() {
-    if (_userProfile == null) return;
-    _saveProfile();
+  /// --- NEW: Function to show the code-entry dialog ---
+  Future<void> _showOtpDialog(String phoneNumber) async {
+    final codeController = TextEditingController();
 
-    if (_userProfile!.isPhoneVerified) {
+    // Grab context *before* the async gap (the 'await showDialog')
+    final BuildContext dialogContext = context;
+
+    await showDialog(
+      context: dialogContext,
+      barrierDismissible: false, // Don't allow closing by tapping outside
+      builder: (context) {
+        // Use a stateful builder so the dialog can show its own loading spinner
+        bool isCheckingCode = false;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Enter 6-Digit Code'),
+              content: TextField(
+                controller: codeController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                decoration: const InputDecoration(hintText: '123456'),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+                ElevatedButton(
+                  // Show loading spinner on button when checking
+                  onPressed: isCheckingCode
+                      ? null
+                      : () async {
+                          setDialogState(() {
+                            isCheckingCode = true;
+                          });
+                          try {
+                            // Call our 2nd cloud function
+                            final callable = _functions.httpsCallable('checkVerificationCode');
+                            final result = await callable.call<Map<String, dynamic>>({'phoneNumber': phoneNumber, 'code': codeController.text});
+
+                            if (!mounted) return; // Check mounted *after* await
+
+                            if (result.data['success'] == true) {
+                              Navigator.of(context).pop(); // Close dialog
+                              widget.showMessage('Phone verified!', MessageType.success);
+                              // Refresh the screen
+                              setState(() {
+                                _userProfileFuture = _fetchUserProfile();
+                              });
+                            } else {
+                              // Code was wrong
+                              widget.showMessage('Invalid code. Please try again.', MessageType.error);
+                            }
+                          } on FirebaseFunctionsException catch (e) {
+                            if (!mounted) return;
+                            widget.showMessage('Error: ${e.message}', MessageType.error);
+                          } finally {
+                            // Only update dialog state if it's still mounted
+                            if (Navigator.of(context).canPop()) {
+                              setDialogState(() {
+                                isCheckingCode = false;
+                              });
+                            }
+                          }
+                        },
+                  child: isCheckingCode ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Submit'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// --- UPDATED: Phone Verification Logic (replaces the TODO) ---
+  void _onVerifyPhonePressed() async {
+    // 0. Check if already verified
+    if (_userProfile?.isPhoneVerified == true) {
       widget.showMessage('Phone is already verified.', MessageType.info);
       return;
     }
 
-    print('TODO: Start phone verification');
-    widget.showMessage('TODO: Start phone verification', MessageType.info);
+    // 1. Save any changes first
+    await _saveProfile();
+
+    // 2. Get the number from the controller
+    final phoneNumber = _phoneController.text.trim();
+    if (phoneNumber.isEmpty) {
+      widget.showMessage('Please enter a phone number.', MessageType.error);
+      return;
+    }
+    // Simple validation (Twilio requires E.164 format)
+    if (!phoneNumber.startsWith('+')) {
+      widget.showMessage('Please use E.164 format (e.g., +15551234567).', MessageType.error);
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isVerifying = true;
+      });
+    }
+
+    try {
+      // 3. Call our 1st cloud function
+      final callable = _functions.httpsCallable('sendVerificationCode');
+      await callable.call<Map<String, dynamic>>({'phoneNumber': phoneNumber});
+
+      // 4. If successful, show the dialog to enter the code
+      if (!mounted) return;
+      widget.showMessage('Verification code sent!', MessageType.info);
+      // Wait for the dialog to close
+      await _showOtpDialog(phoneNumber);
+    } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
+      widget.showMessage('Error: ${e.message}', MessageType.error);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isVerifying = false;
+        });
+      }
+    }
   }
 
+  /// --- UPDSATED: The Build Method ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -115,13 +223,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(
-              child: Text('Error loading profile: ${snapshot.error}', style: const TextStyle(color: Colors.red)),
-            );
+            return Center(child: Text('Error loading profile: ${snapshot.error}'));
           }
-          // Note: snapshot.data is our UserProfile, which NO LONGER has email
-          // final userProfile = snapshot.data!;
-          // We can use _userProfile, which is set in the future
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -133,10 +236,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const Text('Manage the email and phone number used for reminders.', style: TextStyle(fontSize: 16)),
                 const Divider(height: 32),
 
-                // --- UPDATED: Email Field (Read-Only) ---
+                // --- Email Address section (Unchanged) ---
                 Text('Email Address', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
-                // --- THE FIX: Display email from Auth ---
                 Text(_currentUserEmail ?? 'No email found', style: const TextStyle(fontSize: 16, color: Colors.blueGrey)),
                 const SizedBox(height: 8),
                 Row(
@@ -148,27 +250,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // --- UNCHANGED: Phone Field ---
+                // --- Phone Field (Unchanged) ---
                 Text('Phone Number', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _phoneController,
-                  decoration: const InputDecoration(hintText: '+15551234567', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(hintText: '+15551234567', border: OutlineInputBorder(), helperText: 'Must be in E.164 format with country code.'),
                   keyboardType: TextInputType.phone,
                 ),
                 const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: _onVerifyPhonePressed,
-                    icon: Icon(
-                      _userProfile?.isPhoneVerified == true ? Icons.check_circle : Icons.warning,
-                      color: _userProfile?.isPhoneVerified == true ? Colors.green : Colors.orange,
-                    ),
-                    label: Text(_userProfile?.isPhoneVerified == true ? 'Verified' : 'Verify Phone'),
-                  ),
+                  // --- UPDATED: Show loading indicator ---
+                  child: _isVerifying
+                      ? const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator())
+                      : TextButton.icon(
+                          onPressed: _onVerifyPhonePressed,
+                          icon: Icon(
+                            _userProfile?.isPhoneVerified == true ? Icons.check_circle : Icons.warning,
+                            color: _userProfile?.isPhoneVerified == true ? Colors.green : Colors.orange,
+                          ),
+                          label: Text(_userProfile?.isPhoneVerified == true ? 'Verified' : 'Verify Phone'),
+                        ),
                 ),
 
+                // --- Save Button (Unchanged) ---
                 const SizedBox(height: 40),
                 Center(
                   child: ElevatedButton(

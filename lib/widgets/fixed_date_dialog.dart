@@ -3,9 +3,16 @@ import 'package:intl/intl.dart';
 import 'package:random_reminder/utilities/fixed_date.dart'; // We need our enum
 
 class FixedDateDialog extends StatefulWidget {
-  final FixedDate? dateToEdit; // Pass in a date to edit, or null for new
+  final FixedDate? dateToEdit;
 
-  const FixedDateDialog({super.key, this.dateToEdit});
+  // --- NEW: We pass this in when creating a new event ---
+  final bool? isRecurringForNew;
+
+  const FixedDateDialog({
+    super.key,
+    this.dateToEdit,
+    this.isRecurringForNew, // isRecurringForNew is for 'add', dateToEdit is for 'edit'
+  });
 
   @override
   _FixedDateDialogState createState() => _FixedDateDialogState();
@@ -19,10 +26,9 @@ class _FixedDateDialogState extends State<FixedDateDialog> {
   DateTime? _selectedDate;
   final _customNameController = TextEditingController();
 
-  // --- NEW STATE VARIABLES ---
-  bool _isRecurring = true; // Default to recurring
+  // --- NEW: Simplified state. This is set once and never changed by the user. ---
+  bool _isRecurring = true;
   bool _showCustomNameField = false;
-  bool _showRecurringCheckbox = false; // Only show for 'custom' type
 
   @override
   void initState() {
@@ -33,14 +39,12 @@ class _FixedDateDialogState extends State<FixedDateDialog> {
       _selectedType = date.type;
       _selectedDate = date.date;
       _customNameController.text = date.customName ?? '';
-      _isRecurring = date.isRecurring; // Set from saved data
-
-      // Set visibility based on saved data
+      _isRecurring = date.isRecurring; // Get value from existing object
       _showCustomNameField = (date.type == FixedDateType.custom);
-      _showRecurringCheckbox = (date.type == FixedDateType.custom);
     } else {
-      // If adding a new event, set recurring based on default type (birthday)
-      _updateRecurringLogic(_selectedType);
+      // If we are ADDING, get the value from the constructor
+      _isRecurring = widget.isRecurringForNew ?? true; // Default to true
+      _showCustomNameField = (_selectedType == FixedDateType.custom);
     }
   }
 
@@ -65,7 +69,8 @@ class _FixedDateDialogState extends State<FixedDateDialog> {
         type: _selectedType,
         date: _selectedDate!,
         customName: _showCustomNameField ? _customNameController.text : null,
-        isRecurring: _isRecurring, // <-- Use the state variable
+        // --- Use the _isRecurring value we set in initState ---
+        isRecurring: _isRecurring,
       );
 
       // Pop the dialog and return the new object
@@ -75,13 +80,7 @@ class _FixedDateDialogState extends State<FixedDateDialog> {
 
   /// When the user picks a date from the calendar
   void _pickDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime(1900),
-      // Allow future dates for things like graduation
-      lastDate: DateTime(2101),
-    );
+    final DateTime? picked = await showDatePicker(context: context, initialDate: _selectedDate ?? DateTime.now(), firstDate: DateTime(1900), lastDate: DateTime(2101));
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
@@ -89,30 +88,11 @@ class _FixedDateDialogState extends State<FixedDateDialog> {
     }
   }
 
-  /// --- NEW: Helper to manage the recurring logic ---
-  void _updateRecurringLogic(FixedDateType newType) {
-    // Set visibility of the text field
-    _showCustomNameField = (newType == FixedDateType.custom);
-    // Set visibility of the checkbox
-    _showRecurringCheckbox = (newType == FixedDateType.custom);
-
-    // Set the value of _isRecurring
-    if (newType == FixedDateType.graduation) {
-      // Graduations are one-time events
-      _isRecurring = false;
-    } else if (newType == FixedDateType.custom) {
-      // For custom, leave the checkbox as it is (or default to true)
-      _isRecurring = _isRecurring; // No change
-    } else {
-      // All other types (Birthday, etc.) are recurring
-      _isRecurring = true;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.dateToEdit == null ? 'Add Fixed Event' : 'Edit Fixed Event'),
+      // --- NEW: Title changes based on recurrence ---
+      title: Text(widget.dateToEdit != null ? 'Edit Fixed Event' : (_isRecurring ? 'Add Yearly Event' : 'Add One-Time Event')),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -128,8 +108,7 @@ class _FixedDateDialogState extends State<FixedDateDialog> {
                   if (newValue == null) return;
                   setState(() {
                     _selectedType = newValue;
-                    // Call our new helper function
-                    _updateRecurringLogic(newValue);
+                    _showCustomNameField = (newValue == FixedDateType.custom);
                   });
                 },
                 decoration: const InputDecoration(labelText: 'Event Type'),
@@ -155,21 +134,7 @@ class _FixedDateDialogState extends State<FixedDateDialog> {
               Text(_selectedDate == null ? 'No date chosen' : DateFormat.yMMMd().format(_selectedDate!), style: Theme.of(context).textTheme.titleMedium),
               TextButton.icon(icon: const Icon(Icons.calendar_today), label: Text(_selectedDate == null ? 'Select Date' : 'Change Date'), onPressed: _pickDate),
 
-              const SizedBox(height: 10),
-
-              // --- NEW: Recurring Checkbox (Conditional) ---
-              if (_showRecurringCheckbox)
-                CheckboxListTile(
-                  title: const Text("Repeat this event every year?"),
-                  value: _isRecurring,
-                  onChanged: (bool? newValue) {
-                    setState(() {
-                      _isRecurring = newValue ?? true;
-                    });
-                  },
-                  controlAffinity: ListTileControlAffinity.leading,
-                  contentPadding: EdgeInsets.zero,
-                ),
+              // --- CHECKBOX IS GONE ---
             ],
           ),
         ),

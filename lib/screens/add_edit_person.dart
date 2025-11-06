@@ -114,14 +114,12 @@ class _AddEditPersonScreenState extends State<AddEditPersonScreen> {
 
     // This part is a placeholder for our *next* step.
     // For now, I'll just show the TODO
-    widget.showMessage('TODO: Update Dialog to accept isRecurring', Colors.blue);
-
-    // This is what the code WILL be:
-    // if (newDate != null) {
-    //   setState(() {
-    //     _fixedDates.add(newDate);
-    //   });
-    // }
+    // widget.showMessage('TODO: Update Dialog to accept isRecurring', Colors.blue);
+    if (newDate != null) {
+      setState(() {
+        _fixedDates.add(newDate);
+      });
+    }
   }
 
   /// --- UPDATED: Helper function to call the dialog for EDITING ---
